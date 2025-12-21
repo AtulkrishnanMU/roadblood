@@ -11,12 +11,27 @@ const HEALTH_LOW_THRESHOLD = 0.2   # Below this percentage = red
 const TRANSITION_DURATION = 0.5  # Duration for smooth transitions
 
 var health_tween: Tween
+var health_label: Label
+var kill_counter_label: Label
+var total_kills: int = 0
 
 func _ready():
 	show_percentage = false
+	# Find the health label
+	health_label = get_node_or_null("HealthLabel")
+	# Find the kill counter label
+	kill_counter_label = get_node_or_null("KillCounterLabel")
+	# Initialize kill counter display
+	update_kill_counter(0)
+	# Add to health_bar group for enemy spawner communication
+	add_to_group("health_bar")
 
 func update_health(current: int, max_value: int):
 	max_value = max_value
+	
+	# Update health label text
+	if health_label:
+		health_label.text = str(current) + "/" + str(max_value) + " HP"
 	
 	# Create smooth transition
 	if health_tween and health_tween.is_valid():
@@ -61,3 +76,13 @@ func _update_outline_color(color: Color):
 	if bg_style is StyleBoxFlat:
 		bg_style.border_color = color
 		add_theme_stylebox_override("background", bg_style)
+
+func update_kill_counter(kills: int):
+	total_kills = kills
+	if kill_counter_label:
+		kill_counter_label.text = "KILLS: " + str(total_kills)
+	
+	# Check for multi-bullet unlock
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		player.check_multi_bullet_unlock(total_kills)

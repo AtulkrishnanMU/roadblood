@@ -1,24 +1,19 @@
-[gd_scene load_steps=5 format=3 uid="uid://c5chywouv085q"]
+[gd_scene load_steps=6 format=3 uid="uid://c5chywouv085q"]
 
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2n3rk" path="res://scenes/characters/player/player.tscn" id="1_eyte8"]
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2n7lm" path="res://scenes/ui/health_bar.tscn" id="3_health_bar"]
 [ext_resource type="Script" uid="uid://dn6ppqhqcu7ek" path="res://scripts/utils/enemy_spawner.gd" id="4_spawner"]
 [ext_resource type="Script" uid="uid://dlxhp6jx01k5t" path="res://scripts/utils/time_utils.gd" id="5_time_utils"]
+[ext_resource type="Script" uid="uid://dl7am6qsh2ul0" path="res://scripts/levels/level.gd" id="6_level_script"]
 
 [node name="LevelTemplate" type="Node2D"]
+script = ExtResource("6_level_script")
 
 [node name="TimeUtils" type="Node" parent="."]
 script = ExtResource("5_time_utils")
 
 [node name="EnemySpawner" type="Node2D" parent="."]
 script = ExtResource("4_spawner")
-
-[node name="ColorRect" type="ColorRect" parent="."]
-offset_left = 310.0
-offset_top = 195.0
-offset_right = 705.0
-offset_bottom = 471.0
-color = Color(0.2901961, 0.47843137, 0.16862746, 1)
 
 [node name="UI" type="CanvasLayer" parent="."]
 
@@ -29,5 +24,5 @@ position = Vector2(574, 323)
 
 [node name="Camera2D" type="Camera2D" parent="Player"]
 position = Vector2(-1, -3)
-zoom = Vector2(0.55, 0.55)
+zoom = Vector2(0.38, 0.38)
 position_smoothing_enabled = true

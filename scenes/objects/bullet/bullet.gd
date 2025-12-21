@@ -1,6 +1,6 @@
 extends Area2D
 
-var speed = 400
+var speed = 1500  # Increased from 600
 var direction = Vector2.ZERO
 const LIFETIME = 3.0  # seconds before auto-destroy
 const FADE_START_TIME = 2.0  # seconds before fade starts
@@ -39,6 +39,22 @@ func _on_body_entered(body):
 		if was_killed:
 			const TimeUtils = preload("res://scripts/utils/time_utils.gd")
 			TimeUtils.trigger_slow_time()
+			
+			# Increment player combo streak
+			var player = get_tree().get_first_node_in_group("player")
+			if player:
+				print("Bullet: Found player, incrementing combo")
+				player.increment_combo_streak()
+			else:
+				print("Bullet: Could not find player for combo")
+			
+			# Notify enemy spawner to increase spawn frequency
+			var spawner = get_tree().get_first_node_in_group("enemy_spawner")
+			if spawner:
+				print("Bullet: Found enemy spawner, incrementing kill count")
+				spawner.increment_kill_count()
+			else:
+				print("Bullet: Enemy spawner not found")
 		
 		# Destroy bullet
 		queue_free()
