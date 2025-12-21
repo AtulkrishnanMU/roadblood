@@ -1,0 +1,153 @@
+[gd_scene load_steps=20 format=3 uid="uid://bula0rprkdbg6"]
+
+[ext_resource type="Script" uid="uid://mntjkxvmxogx" path="res://scenes/characters/player_car.gd" id="1_2qkyr"]
+[ext_resource type="Texture2D" uid="uid://bwf4iah1d7ucr" path="res://sprites/player_car/player_car.png" id="1_jmyin"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ir7uv"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(0, 0, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v64uw"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(332, 332, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s2c5k"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(166, 166, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5hvhq"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(166, 0, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_w3cpc"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(332, 0, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_54ksr"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(498, 0, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_y4ebs"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(664, 0, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0kxao"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(0, 166, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7iysn"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(166, 166, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ha3po"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(332, 166, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e73mi"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(498, 166, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bq8fc"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(664, 166, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_o1df7"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(0, 332, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s557j"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(166, 332, 166, 166)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qbl41"]
+atlas = ExtResource("1_jmyin")
+region = Rect2(332, 332, 166, 166)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_ve2u2"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ir7uv")
+}],
+"loop": true,
+"name": &"drive_back_view",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v64uw")
+}],
+"loop": true,
+"name": &"drive_front_view",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s2c5k")
+}],
+"loop": true,
+"name": &"drive_side_view",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5hvhq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_w3cpc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_54ksr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_y4ebs")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0kxao")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7iysn")
+}],
+"loop": true,
+"name": &"turn_back_view",
+"speed": 24.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ha3po")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e73mi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bq8fc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_o1df7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s557j")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qbl41")
+}],
+"loop": true,
+"name": &"turn_front_view",
+"speed": 24.0
+}]
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_jmyin"]
+radius = 56.05779
+height = 130.11418
+
+[node name="PlayerCar" type="CharacterBody2D"]
+script = ExtResource("1_2qkyr")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_ve2u2")
+animation = &"turn_front_view"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(2, 0)
+rotation = 1.5832181
+shape = SubResource("CapsuleShape2D_jmyin")

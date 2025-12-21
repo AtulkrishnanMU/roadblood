@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://c5chywouv085q"]
+
+[ext_resource type="PackedScene" uid="uid://bula0rprkdbg6" path="res://scenes/characters/player_car.tscn" id="1_eyte8"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_eyte8"]
+size = Vector2(1244, 700)
+
+[node name="LevelTemplate" type="Node2D"]
+
+[node name="ColorRect" type="ColorRect" parent="."]
+offset_left = 382.0
+offset_top = 202.0
+offset_right = 823.0
+offset_bottom = 532.0
+
+[node name="PlayerCar" parent="." instance=ExtResource("1_eyte8")]
+position = Vector2(602, 334)
+
+[node name="Camera2D" type="Camera2D" parent="PlayerCar"]
+zoom = Vector2(0.74, 0.74)
+
+[node name="Ground" type="Area2D" parent="."]
+position = Vector2(612, 340)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
+shape = SubResource("RectangleShape2D_eyte8")
