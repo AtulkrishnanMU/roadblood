@@ -9,6 +9,7 @@ var ATTACK_COOLDOWN = 0.8
 var KNOCKBACK_FORCE = 300.0
 var MAX_HEALTH = 10
 var DEATH_ANIMATION_DURATION = 1.5
+var SCORE_VALUE = 100  # Base score value for killing this enemy
 
 # Target behavior - to be overridden by child classes
 var targets_food = false  # false = targets player, true = targets food
@@ -40,6 +41,7 @@ const BLOOD_SPLASH_SCENE = preload("res://scenes/blood/blood_splash.tscn")
 # Utility references
 const TimeUtils = preload("res://scenes/utility-scripts/utils/time_utils.gd")
 const AudioUtils = preload("res://scenes/utility-scripts/utils/audio_utils.gd")
+const PopupUtils = preload("res://scenes/utility-scripts/utils/popup_utils.gd")
 
 var player: CharacterBody2D
 var current_target: Node
@@ -71,19 +73,13 @@ func _ready():
 	# Set up food detection Area2D
 	var food_detector = $FoodDetector
 	if food_detector:
-		print("FoodDetector found, connecting signal")
 		food_detector.area_entered.connect(_on_food_collision)
 		food_detector.area_exited.connect(_on_food_exit)
-	else:
-		print("FoodDetector NOT found!")
 
 func _on_food_collision(body):
-	print("Enemy detected collision with: ", body.name, " in group food: ", body.is_in_group("food"))
 	if body.is_in_group("food"):
 		# Check if this enemy targets food
-		print("Enemy targets_food: ", targets_food)
 		if targets_food:
-			print("Starting continuous food attack!")
 			_start_continuous_food_attack(body)
 
 func _start_continuous_food_attack(food_object):
@@ -92,7 +88,6 @@ func _start_continuous_food_attack(food_object):
 	continuous_attack_timer = 0.0
 	
 	# Deal immediate damage on first contact
-	print("Immediate first bite! Damage: ", DAMAGE)
 	var knockback_direction = (current_food_target.global_position - global_position).normalized()
 	current_food_target.take_damage(DAMAGE, knockback_direction)
 
@@ -105,7 +100,6 @@ func _update_continuous_food_attack(delta):
 		continuous_attack_timer += delta
 		
 		if continuous_attack_timer >= CONTINUOUS_ATTACK_INTERVAL:
-			print("Continuous food attack! Damage: ", DAMAGE)
 			# Calculate knockback direction (from enemy to food)
 			var knockback_direction = (current_food_target.global_position - global_position).normalized()
 			
@@ -116,33 +110,50 @@ func _update_continuous_food_attack(delta):
 
 func _on_food_exit(body):
 	if body.is_in_group("food"):
-		print("Enemy stopped colliding with food")
 		_stop_continuous_food_attack()
 
 func _on_bullet_hit(body):
 	if body.is_in_group("bullets"):
+		print("DEBUG: _on_bullet_hit called")
 		# Calculate knockback direction (from enemy to bullet)
 		var knockback_direction = (global_position - body.global_position).normalized()
 		
 		# Take damage and check if killed
 		var was_killed = take_damage(10, knockback_direction)
+		print("DEBUG: Enemy was_killed: ", was_killed)
 		
 		# Destroy bullet
 		body.queue_free()
 		
 		# Trigger slow-time effect only if enemy was killed
 		if was_killed:
+			print("DEBUG: Processing enemy death")
 			TimeUtils.trigger_slow_time()
 			
-			# Increment player combo streak
-			var player = get_tree().get_first_node_in_group("player")
-			if player:
-				player.increment_combo_streak()
+			# Add score for killing this enemy
+			var ui = get_tree().get_first_node_in_group("ui")
+			if ui:
+				print("DEBUG: Enemy killed, adding ", SCORE_VALUE, " points")
+				ui.add_to_score(SCORE_VALUE)
+				# Use centralized popup system
+				PopupUtils.spawn_score_popup(self, SCORE_VALUE)
+			else:
+				print("DEBUG: UI not found for score addition")
 			
 			# Notify enemy spawner to increase spawn frequency
 			var spawner = get_tree().get_first_node_in_group("enemy_spawner")
 			if spawner:
+				print("DEBUG: Enemy death - calling increment_kill_count")
 				spawner.increment_kill_count()
+			else:
+				print("DEBUG: Enemy death - spawner not found")
+			
+			# Increment individual kill count for milestone tracking
+			if ui:
+				print("DEBUG: About to call ui.increment_kill_count")
+				ui.increment_kill_count()
+			else:
+				print("DEBUG: UI not found for milestone tracking")
 
 func _play_hurt_sound():
 	# Play random hurt sound with random pitch
@@ -186,14 +197,13 @@ func _spawn_blood_splash(hit_direction: Vector2 = Vector2.ZERO):
 				blood_splash.set_dead_enemy(true)
 
 func _find_target():
+	# Temporarily disable food targeting to debug player movement issue
 	# Override in child classes or use this default logic
-	if targets_food:
+	if false:  # targets_food - temporarily disabled
 		# Find nearest food
 		var food_objects = get_tree().get_nodes_in_group("food")
-		print("Found ", food_objects.size(), " food objects")
-		current_target = _get_nearest_node(food_objects)
-		if current_target:
-			print("Targeting food at: ", current_target.global_position)
+		if food_objects.size() > 0:
+			current_target = _get_nearest_node(food_objects)
 	else:
 		# Target player
 		current_target = player
@@ -252,10 +262,8 @@ func _physics_process(delta):
 				velocity = Vector2.ZERO
 
 func _attack_food(food_object):
-	print("_attack_food called, attack_timer: ", attack_timer)
 	# Only attack if cooldown is ready
 	if attack_timer <= 0:
-		print("Attacking food with damage: ", DAMAGE)
 		# Calculate knockback direction (from enemy to food)
 		var knockback_direction = (food_object.global_position - global_position).normalized()
 		
@@ -263,8 +271,6 @@ func _attack_food(food_object):
 		food_object.take_damage(DAMAGE, knockback_direction)
 		
 		attack_timer = ATTACK_COOLDOWN
-	else:
-		print("Attack on cooldown")
 
 func _attack_target():
 	# Only attack if cooldown is ready
@@ -288,6 +294,11 @@ func take_damage(damage: int, knockback_direction: Vector2):
 	# Spawn blood splash effect
 	_spawn_blood_splash(knockback_direction)
 	
+	# Increment player combo streak immediately for feedback
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		player.increment_combo_streak()
+	
 	# Play hurt sound when damaged (but not when dying)
 	if health > 0:
 		_play_hurt_sound()
@@ -301,6 +312,24 @@ func take_damage(damage: int, knockback_direction: Vector2):
 
 func _start_death_animation():
 	is_dying = true
+	# Enemy death logic
+	
+	print("DEBUG: Processing enemy death")
+	
+	# Add score for killing this enemy
+	var ui = get_tree().get_first_node_in_group("ui")
+	if ui:
+		print("DEBUG: Enemy killed, adding ", SCORE_VALUE, " points")
+		ui.add_to_score(SCORE_VALUE)
+		# Use centralized popup system
+		PopupUtils.spawn_score_popup(self, SCORE_VALUE)
+	else:
+		print("DEBUG: UI not found for score addition")
+	
+	# Notify enemy spawner to increase spawn frequency
+	var spawner = get_tree().get_first_node_in_group("enemy_spawner")
+	if spawner:
+		spawner.increment_kill_count()
 	
 	# Trigger slow-time effect with 10% chance on enemy death
 	TimeUtils.trigger_slow_time()

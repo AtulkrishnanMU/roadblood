@@ -1,7 +1,7 @@
 extends Node2D
 
 var player: CharacterBody2D
-var health_bar: ProgressBar
+var ui: Control
 var combo_text_label: Label
 var combo_total_label: Label
 
@@ -10,10 +10,10 @@ func _ready():
 	player = get_tree().get_first_node_in_group("player")
 	
 	# Find UI elements
-	health_bar = get_node_or_null("UI/HealthBar")
-	if health_bar:
-		combo_text_label = health_bar.get_node_or_null("ComboTextLabel")
-		combo_total_label = health_bar.get_node_or_null("ComboTotalLabel")
+	ui = get_node_or_null("UI/UI")
+	if ui:
+		combo_text_label = ui.get_node_or_null("ComboTextLabel")
+		combo_total_label = ui.get_node_or_null("ComboTotalLabel")
 	
 	# Connect player signals
 	if player and player.has_signal("combo_streak_changed"):

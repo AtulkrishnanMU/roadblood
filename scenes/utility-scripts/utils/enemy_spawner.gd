@@ -5,6 +5,12 @@ const BIG_RAT_SCENE = preload("res://scenes/characters/enemy/big_rat.tscn")
 const CIRCULAR_WAVE_SCENE = preload("res://scenes/effects/circular_wave.tscn")
 const BASE_SPAWN_INTERVAL = 3.0  # base seconds between spawns
 const SPAWN_RADIUS = 1200.0  # distance from player to spawn enemies (increased from 800)
+const ROOM_WIDTH = 1200.0  # room width in pixels
+const ROOM_HEIGHT = 800.0  # room height in pixels
+const ROOM_CENTER_X = 576.0  # room center X position
+const ROOM_CENTER_Y = 320.0  # room center Y position (corrected from 400)
+const ROOM_SCALE_X = 2.62  # room scale X
+const ROOM_SCALE_Y = 2.23  # room scale Y
 const FADE_IN_DURATION = 1.0  # duration for fade-in effect
 const MIN_SPAWN_INTERVAL = 0.5  # minimum spawn interval (fastest possible)
 const MAX_SPEED_INCREASES = 8  # maximum number of speed increases (caps at 8*5=40 kills)
@@ -71,7 +77,7 @@ func spawn_enemies():
 		spawn_single_enemy()
 
 func spawn_single_enemy():
-	print("EnemySpawner: Spawning enemy at player position: ", player.global_position)
+	print("EnemySpawner: Spawning enemy from room edge")
 	
 	# Determine enemy type based on kill count
 	var enemy_scene: PackedScene
@@ -82,14 +88,8 @@ func spawn_single_enemy():
 		enemy_scene = BASIC_RAT_SCENE
 		print("EnemySpawner: Spawning Basic Rat")
 	
-	# Generate random angle around player
-	var random_angle = randf() * 2.0 * PI
-	
-	# Calculate spawn position at radius from player
-	var spawn_position = player.global_position + Vector2(
-		cos(random_angle) * SPAWN_RADIUS,
-		sin(random_angle) * SPAWN_RADIUS
-	)
+	# Get random position on room edge
+	var spawn_position = _get_random_position_on_room_edge()
 	
 	print("EnemySpawner: Spawn position calculated: ", spawn_position)
 	
@@ -103,16 +103,64 @@ func spawn_single_enemy():
 	# Add fade-in effect
 	_fade_in_enemy(enemy)
 
+func _get_random_position_on_room_edge() -> Vector2:
+	# Calculate actual room boundaries with scale
+	var actual_room_width = ROOM_WIDTH * ROOM_SCALE_X
+	var actual_room_height = ROOM_HEIGHT * ROOM_SCALE_Y
+	
+	var room_left = ROOM_CENTER_X - actual_room_width / 2
+	var room_right = ROOM_CENTER_X + actual_room_width / 2
+	var room_top = ROOM_CENTER_Y - actual_room_height / 2
+	var room_bottom = ROOM_CENTER_Y + actual_room_height / 2
+	
+	# Add margin to ensure enemies spawn INSIDE the room
+	var spawn_margin = 50.0
+	room_left += spawn_margin
+	room_right -= spawn_margin
+	room_top += spawn_margin
+	room_bottom -= spawn_margin
+	
+	# Choose random wall (0: top, 1: right, 2: bottom, 3: left)
+	var wall_choice = randi() % 4
+	
+	var spawn_position: Vector2
+	
+	match wall_choice:
+		0:  # Top wall (spawn just inside top edge)
+			spawn_position = Vector2(
+				randf_range(room_left, room_right),
+				room_top + 10  # Small buffer from exact edge
+			)
+		1:  # Right wall (spawn just inside right edge)
+			spawn_position = Vector2(
+				room_right - 10,  # Small buffer from exact edge
+				randf_range(room_top, room_bottom)
+			)
+		2:  # Bottom wall (spawn just inside bottom edge)
+			spawn_position = Vector2(
+				randf_range(room_left, room_right),
+				room_bottom - 10  # Small buffer from exact edge
+			)
+		3:  # Left wall (spawn just inside left edge)
+			spawn_position = Vector2(
+				room_left + 10,  # Small buffer from exact edge
+				randf_range(room_top, room_bottom)
+			)
+		_:
+			spawn_position = Vector2(room_left + 50, room_top + 50)  # Fallback
+	
+	return spawn_position
+
 func increment_kill_count():
 	kill_count += 1
 	print("EnemySpawner: Kill count increased to: ", kill_count)
 	
 	# Update kill counter in UI
-	var health_bar = get_tree().get_first_node_in_group("health_bar")
-	if health_bar:
-		health_bar.update_kill_counter(kill_count)
+	var ui = get_tree().get_first_node_in_group("ui")
+	if ui:
+		ui.update_kill_counter(kill_count)
 	else:
-		print("EnemySpawner: Health bar not found for kill counter update")
+		print("EnemySpawner: UI not found for kill counter update")
 	
 	# Check if we should enable wave spawning
 	if kill_count >= WAVE_TRIGGER_KILLS and not waves_enabled:

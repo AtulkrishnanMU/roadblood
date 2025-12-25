@@ -23,21 +23,22 @@ const BULLET_SPREAD_ANGLE = 15.0  # spread angle for multi-bullets (degrees)
 
 # Utility references
 const TimeUtils = preload("res://scenes/utility-scripts/utils/time_utils.gd")
+const PopupUtils = preload("res://scenes/utility-scripts/utils/popup_utils.gd")
 const AudioUtilsScript = preload("res://scenes/utility-scripts/utils/audio_utils.gd")
 
 # Multi-bullet system
 var multi_bullet_enabled = false
 var current_gun_width = BARREL_WIDTH
 
-# Health system (based on ashbreaker)
-const MAX_HEALTH := 200
+# Health management constants
+const MAX_HEALTH = 200
+const HEALTH_POPUP_HEIGHT = 50.0
+
+# Health management variables
 var health: int = MAX_HEALTH
-const HEALTH_BAR_SCENE = preload("res://scenes/ui/health_bar.tscn")
-var health_bar: ProgressBar
 
 # Combo system constants
-const COMBO_DURATION = 5.0  # Seconds before combo expires
-const HEALTH_POPUP_HEIGHT = 15.0  # Height for health gain popups
+const COMBO_DURATION = 1.0  # Seconds before combo expires
 
 # Combo system variables
 var combo_streak: int = 0
@@ -50,8 +51,13 @@ var base_y = 0.0
 var knockback_velocity = Vector2.ZERO
 var screen_shake_time = 0.0
 var camera: Camera2D
+var ui: CanvasLayer
+var ui_script: Node
 var slow_mo_shoot_counter = 0  # Counter for slow-time shooting limitation
 var was_mouse_pressed = false  # Track previous mouse state
+var shoot_timer = 0.0  # Timer for fire rate control
+const FIRE_RATE = 0.2  # Seconds between shots (5 shots per second)
+const TRIPLE_BULLET_FIRE_RATE = 0.4  # Seconds between triple bullet shots (2.5 shots per second)
 
 func _ready():
 	base_y = position.y
@@ -77,8 +83,8 @@ func _setup_combo_timer():
 	add_child(combo_timer)
 
 func _on_combo_timer_timeout():
-	# Apply healing before resetting the combo
-	apply_combo_healing()
+	# Apply score before resetting the combo
+	apply_combo_score()
 	# Reset combo streak
 	reset_combo_streak()
 
@@ -91,8 +97,10 @@ func increment_combo_streak():
 		combo_timer.stop()
 		combo_timer.start()
 	
+	# Show combo popup immediately for instant feedback
+	PopupUtils.spawn_combo_popup(self, "x" + str(combo_streak))
+	
 	emit_signal("combo_streak_changed", combo_streak)
-	print("Combo streak increased to: ", combo_streak)
 
 func reset_combo_streak():
 	combo_streak = 0
@@ -105,75 +113,26 @@ func reset_combo_streak():
 	emit_signal("combo_streak_changed", 0)
 	print("Combo streak reset")
 
-func apply_combo_healing():
-	print("Applying combo healing for streak: ", combo_streak)
+func apply_combo_score():
 	if combo_streak > 0:
-		# Calculate heal potential using triangular formula: n(n+1)/2
-		var heal_potential = combo_streak * (combo_streak + 1) / 2.0
-		var actual_heal = heal_potential
+		# Calculate score using triangular formula: n(n+1)/2
+		var score_potential = combo_streak * (combo_streak + 1) / 2.0
+		var actual_score = int(score_potential)
 		
-		print("Heal potential: ", actual_heal)
-		
-		if actual_heal > 0:
-			var old_health = health
-			health = min(health + actual_heal, MAX_HEALTH)
+		if actual_score > 0:
+			# Add score to UI
+			if ui_script:
+				ui_script.add_to_score(actual_score)
 			
-			print("Health increased from ", old_health, " to ", health)
-			
-			# Update health bar
-			if health_bar:
-				health_bar.update_health(health, MAX_HEALTH)
-				print("Health bar updated")
-			
-			# Show healing popup
-			_spawn_health_popup(actual_heal)
-			print("Health popup spawned")
-			
-			print("Healed for ", actual_heal, " HP from combo of ", combo_streak)
-		else:
-			print("No healing needed")
-		
-		# Reset combo streak after healing is applied
-		reset_combo_streak()
+			# Show score popup when combo is applied
+			PopupUtils.spawn_score_popup(self, actual_score)
 
-func _spawn_health_popup(amount: int):
+func _spawn_score_popup(amount: int):
 	# Play health gain sound
 	_play_health_gain_sound()
 	
-	# Create a simple floating text popup for healing
-	var popup_label = Label.new()
-	popup_label.text = "+" + str(amount) + " HP"
-	popup_label.modulate = Color.GREEN
-	popup_label.position = global_position + Vector2(-20, -HEALTH_POPUP_HEIGHT - 30)  # Position 30 pixels higher
-	
-	# Increase font size even more for better visibility
-	popup_label.add_theme_font_size_override("font_size", 36)
-	
-	# Add outline for better readability
-	popup_label.add_theme_color_override("font_shadow_color", Color.BLACK)
-	popup_label.add_theme_constant_override("shadow_offset_x", 3)
-	popup_label.add_theme_constant_override("shadow_offset_y", 3)
-	
-	# Add to scene
-	get_tree().current_scene.add_child(popup_label)
-	
-	# Animate the popup with flicker effect
-	var tween = create_tween()
-	tween.set_parallel(true)
-	
-	# Flicker effect - alternate between bright green and normal green
-	var flicker_tween = create_tween()
-	flicker_tween.set_loops(3)  # Flicker 3 times
-	for i in range(3):
-		flicker_tween.tween_property(popup_label, "modulate", Color.WHITE, 0.1)
-		flicker_tween.tween_property(popup_label, "modulate", Color.GREEN, 0.1)
-	
-	# Float up and fade out with larger movement
-	tween.tween_property(popup_label, "position:y", popup_label.position.y - 70, 1.5)
-	tween.tween_property(popup_label, "modulate:a", 0.0, 1.5)
-	
-	# Remove after animation
-	tween.tween_callback(popup_label.queue_free).set_delay(1.5)
+	# Use centralized popup system for health popup
+	PopupUtils.spawn_health_popup(self, amount)
 
 func _play_health_gain_sound():
 	# Create audio player for health gain sound
@@ -211,19 +170,29 @@ func _spawn_blood_splash(hit_direction: Vector2 = Vector2.ZERO):
 			blood_splash.set_dead_enemy(false)
 
 func _setup_health_bar():
-	# Find existing health bar in UI layer
+	# Find the UI CanvasLayer
 	var scene_root = get_tree().current_scene
-	health_bar = scene_root.get_node_or_null("UI/HealthBar")
+	ui = scene_root.get_node_or_null("UI")
+	
+	# Get the actual UI Control node from within the CanvasLayer
+	var ui_control = ui.get_node_or_null("UI") if ui else null
+	
+	# Manually load and attach the UI script if not already attached
+	if ui_control and ui_control.get_script() == null:
+		var ui_script_resource = load("res://scenes/ui/ui.gd")
+		ui_control.set_script(ui_script_resource)
+	
+	ui_script = ui_control
 	
 	# Initialize health bar with current health
-	if health_bar:
-		health_bar.update_health(health, MAX_HEALTH)
+	if ui_script:
+		ui_script.update_health(health, MAX_HEALTH)
 
 func _physics_process(delta):
 	time += delta
 	
-	# Apply knockback decay with ease-out
-	knockback_velocity = knockback_velocity.move_toward(Vector2.ZERO, 200.0 * delta)
+	# Update shoot timer
+	shoot_timer += delta
 	
 	# Handle WASD and arrow key movement
 	var movement_input = Vector2.ZERO
@@ -243,12 +212,15 @@ func _physics_process(delta):
 	# Apply movement if there's input
 	if movement_input.length() > 0:
 		movement_input = movement_input.normalized()
-		position += movement_input * MOVEMENT_SPEED * delta
-		# Update base_y to follow movement
-		base_y = position.y
+		velocity = movement_input * MOVEMENT_SPEED
+	else:
+		velocity = Vector2.ZERO
 	
-	# Apply knockback to position
-	position += knockback_velocity * delta
+	# Simple movement
+	move_and_slide()
+	
+	# Update base_y to follow movement
+	base_y = position.y
 	
 	# Update screen shake
 	if screen_shake_time > 0:
@@ -263,53 +235,89 @@ func _physics_process(delta):
 		if camera:
 			camera.offset = Vector2.ZERO
 	
-	# Floating behavior only when idle (no knockback)
-	if knockback_velocity.length() < 1.0:  # Player is essentially idle
-		var float_phase = time * FLOAT_SPEED * 0.1
-		var smooth_float = smoothstep(-1.0, 1.0, sin(float_phase))  # Ease-in and ease-out
-		var float_offset = smooth_float * FLOAT_HEIGHT
-		
-		# Always update base_y to current position minus current float offset
-		base_y = position.y - float_offset
-		
-		# Smoothly interpolate to floating position
-		var target_y = base_y + float_offset
-		position.y = lerp(position.y, target_y, 0.1)  # Smooth transition
+	# Remove floating behavior to maintain full player control
+	# Commented out to prevent unwanted position changes
+	# if knockback_velocity.length() < 1.0:  # Player is essentially idle
+	#	var float_phase = time * FLOAT_SPEED * 0.1
+	#	var smooth_float = smoothstep(-1.0, 1.0, sin(float_phase))  # Ease-in and ease-out
+	#	var float_offset = smooth_float * FLOAT_HEIGHT
+	#	
+	#	# Always update base_y to current position minus current float offset
+	#	base_y = position.y - float_offset
+	#	
+	#	# Smoothly interpolate to floating position
+	#	var target_y = base_y + float_offset
+	#	position.y = lerp(position.y, target_y, 0.1)  # Smooth transition
 	
-	# Update gun rotation to follow mouse cursor
+	# Auto-aim towards nearest enemy with smooth rotation
 	if camera:
-		var mouse_pos = get_global_mouse_position()
-		shoot_angle = (mouse_pos - global_position).angle()
-		
-		# Move camera slightly towards aiming direction
-		var camera_offset = Vector2.from_angle(shoot_angle) * 100.0  # 100 pixels offset
-		camera.global_position = lerp(camera.global_position, global_position + camera_offset, 0.1)
-	
-	# Shoot on left mouse click (single click detection)
-	var is_mouse_pressed = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
-	if is_mouse_pressed and not was_mouse_pressed:  # Only on initial press
-		# Check if we're in slow-time by accessing TimeUtils directly
-		var time_utils = get_tree().get_first_node_in_group("time_utils")
-		var is_slow_time = false
-		if time_utils:
-			is_slow_time = time_utils.is_slow_time_active
-		
-		if is_slow_time:
-			# Increment counter during slow-time
-			slow_mo_shoot_counter += 1
-			# Only shoot every 3 presses (counter % 3 == 1)
-			if slow_mo_shoot_counter % 3 == 1:
-				shoot_bullet()
+		var nearest_enemy = _find_nearest_enemy()
+		if nearest_enemy:
+			var target_angle = (nearest_enemy.global_position - global_position).angle()
+			
+			# Smoothly rotate towards target angle
+			var angle_diff = target_angle - shoot_angle
+			# Handle angle wrapping
+			if angle_diff > PI:
+				angle_diff -= 2 * PI
+			elif angle_diff < -PI:
+				angle_diff += 2 * PI
+			
+			# Rotate smoothly (adjust rotation speed as needed)
+			var rotation_speed = 5.0  # Radians per second
+			shoot_angle += angle_diff * rotation_speed * delta
+			
+			# Remove camera movement to prevent any interference
+			# var camera_offset = Vector2.from_angle(shoot_angle) * 100.0  # 100 pixels offset
+			# camera.global_position = lerp(camera.global_position, global_position + camera_offset, 0.1)
+			
+			# Auto-shoot at nearest enemy
+			_auto_shoot()
 		else:
-			# Normal shooting when not in slow-time
-			shoot_bullet()
-			slow_mo_shoot_counter = 0  # Reset counter when not in slow-time
-	
-	# Update mouse state for next frame
-	was_mouse_pressed = is_mouse_pressed
+			# No enemies found, don't shoot
+			slow_mo_shoot_counter = 0
 	
 	# Draw shooting direction indicator (optional visual feedback)
 	queue_redraw()
+
+func _find_nearest_enemy():
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	var nearest_enemy = null
+	var nearest_distance = INF
+	
+	for enemy in enemies:
+		var distance = global_position.distance_to(enemy.global_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_enemy = enemy
+	
+	return nearest_enemy
+
+func _auto_shoot():
+	# Check fire rate - use slower rate for triple bullets
+	var current_fire_rate = TRIPLE_BULLET_FIRE_RATE if multi_bullet_enabled else FIRE_RATE
+	if shoot_timer < current_fire_rate:
+		return
+	
+	# Reset shoot timer
+	shoot_timer = 0.0
+	
+	# Check if we're in slow-time by accessing TimeUtils directly
+	var time_utils = get_tree().get_first_node_in_group("time_utils")
+	var is_slow_time = false
+	if time_utils:
+		is_slow_time = time_utils.is_slow_time_active
+	
+	if is_slow_time:
+		# Increment counter during slow-time
+		slow_mo_shoot_counter += 1
+		# Only shoot every 3 presses (counter % 3 == 1)
+		if slow_mo_shoot_counter % 3 == 1:
+			shoot_bullet()
+	else:
+		# Auto-shoot continuously when not in slow-time
+		shoot_bullet()
+		slow_mo_shoot_counter = 0  # Reset counter when not in slow-time
 
 func shoot_bullet():
 	# Check if multi-bullet mode is enabled
@@ -335,11 +343,8 @@ func _create_bullet_at_angle(angle: float):
 	var shoot_direction = Vector2(cos(angle), sin(angle))
 	bullet.setup(shoot_direction)
 	
-	# Apply knockback to player (opposite direction of shooting) - only for center bullet
-	if abs(angle - shoot_angle) < 0.1:  # Only apply knockback for center bullet
-		knockback_velocity = -shoot_direction * KNOCKBACK_FORCE
-		
-		# Trigger screen shake
+	# Trigger screen shake (only for center bullet)
+	if abs(angle - shoot_angle) < 0.1:  # Only apply effects for center bullet
 		screen_shake_time = SCREEN_SHAKE_DURATION
 		
 		# Create muzzle flash effect at barrel tip
@@ -364,15 +369,14 @@ func take_damage(amount: int, knockback_direction: Vector2 = Vector2.ZERO):
 	# Spawn blood splash effect
 	_spawn_blood_splash(knockback_direction)
 	
-	# Apply knockback to player
-	if knockback_direction != Vector2.ZERO:
-		knockback_velocity = knockback_direction * 100.0  # Reduced to make knockback very subtle
+	# No knockback applied - player movement never interrupted
 	
-	# Apply combo healing before taking damage if combo is active
-	apply_combo_healing()
+	# Apply combo score before taking damage if combo is active
+	apply_combo_score()
 	
 	health = max(health - amount, 0)
-	_update_health_bar()
+	if ui_script:
+		ui_script.update_health(health, MAX_HEALTH)
 	
 	if health <= 0:
 		_die()
@@ -392,11 +396,8 @@ func _play_hit_sound():
 
 func heal(amount: int):
 	health = min(health + amount, MAX_HEALTH)
-	_update_health_bar()
-
-func _update_health_bar():
-	if health_bar:
-		health_bar.update_health(health, MAX_HEALTH)
+	if ui_script:
+		ui_script.update_health(health, MAX_HEALTH)
 
 func _create_muzzle_flash(flash_position: Vector2):
 	# Create simple muzzle flash effect
@@ -448,7 +449,8 @@ func _play_gunshot_sound():
 func _die():
 	# Player death logic - for now just respawn
 	health = MAX_HEALTH
-	_update_health_bar()
+	if ui_script:
+		ui_script.update_health(health, MAX_HEALTH)
 	position = Vector2.ZERO  # Reset position
 
 func _draw():

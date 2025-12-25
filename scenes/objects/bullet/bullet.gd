@@ -50,22 +50,6 @@ func _on_enemy_hit(enemy):
 	if was_killed:
 		const TimeUtils = preload("res://scenes/utility-scripts/utils/time_utils.gd")
 		TimeUtils.trigger_slow_time()
-		
-		# Increment player combo streak
-		var player = get_tree().get_first_node_in_group("player")
-		if player:
-			print("Bullet: Found player, incrementing combo")
-			player.increment_combo_streak()
-		else:
-			print("Bullet: Could not find player for combo")
-		
-		# Notify enemy spawner to increase spawn frequency
-		var spawner = get_tree().get_first_node_in_group("enemy_spawner")
-		if spawner:
-			print("Bullet: Found enemy spawner, incrementing kill count")
-			spawner.increment_kill_count()
-		else:
-			print("Bullet: Enemy spawner not found")
 
 func setup(dir):
 	direction = dir.normalized()

@@ -1,14 +1,19 @@
-[gd_scene load_steps=7 format=3 uid="uid://c5chywouv085q"]
+[gd_scene load_steps=8 format=3 uid="uid://c5chywouv085q"]
 
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2n3rk" path="res://scenes/characters/player/player.tscn" id="1_eyte8"]
-[ext_resource type="PackedScene" uid="uid://bvxw8y7q2n7lm" path="res://scenes/ui/health_bar.tscn" id="3_health_bar"]
+[ext_resource type="PackedScene" uid="uid://b3dc8kuyva8ve" path="res://scenes/ui/ui.tscn" id="3_ui"]
 [ext_resource type="Script" uid="uid://dn6ppqhqcu7ek" path="res://scenes/utility-scripts/utils/enemy_spawner.gd" id="4_spawner"]
 [ext_resource type="Script" uid="uid://dlxhp6jx01k5t" path="res://scenes/utility-scripts/utils/time_utils.gd" id="5_time_utils"]
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2food" path="res://scenes/objects/food/food.tscn" id="6_eokde"]
 [ext_resource type="Script" uid="uid://dl7am6qsh2ul0" path="res://scenes/levels/level.gd" id="6_level_script"]
+[ext_resource type="PackedScene" uid="uid://bvxw8y7q2room" path="res://scenes/objects/room/room.tscn" id="7_room"]
 
 [node name="LevelTemplate" type="Node2D"]
 script = ExtResource("6_level_script")
+
+[node name="Room" parent="." instance=ExtResource("7_room")]
+position = Vector2(576, 319.99997)
+scale = Vector2(2.6203313, 2.2300773)
 
 [node name="TimeUtils" type="Node" parent="."]
 script = ExtResource("5_time_utils")
@@ -21,7 +26,7 @@ position = Vector2(568, 445)
 
 [node name="UI" type="CanvasLayer" parent="."]
 
-[node name="HealthBar" parent="UI" instance=ExtResource("3_health_bar")]
+[node name="UI" parent="UI" instance=ExtResource("3_ui")]
 
 [node name="Player" parent="." instance=ExtResource("1_eyte8")]
 position = Vector2(574, 323)

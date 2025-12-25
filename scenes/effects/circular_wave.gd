@@ -93,14 +93,6 @@ func _on_area_entered(area):
 		
 		# Increment kill counter and combo only if enemy was killed
 		if was_killed:
-			# Increment player combo streak
-			var player_ref = get_tree().get_first_node_in_group("player")
-			if player_ref:
-				print("CircularWave: Found player, incrementing combo")
-				player_ref.increment_combo_streak()
-			else:
-				print("CircularWave: Could not find player for combo")
-			
 			# Notify enemy spawner to increase spawn count
 			var spawner = get_tree().get_first_node_in_group("enemy_spawner")
 			if spawner:
