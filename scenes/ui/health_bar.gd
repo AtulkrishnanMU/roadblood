@@ -26,12 +26,12 @@ func _ready():
 	# Add to health_bar group for enemy spawner communication
 	add_to_group("health_bar")
 
-func update_health(current: int, max_value: int):
-	max_value = max_value
+func update_health(current: int, max_health: int):
+	max_value = max_health
 	
 	# Update health label text
 	if health_label:
-		health_label.text = str(current) + "/" + str(max_value) + " HP"
+		health_label.text = str(current) + "/" + str(max_health) + " HP"
 	
 	# Create smooth transition
 	if health_tween and health_tween.is_valid():
@@ -42,10 +42,10 @@ func update_health(current: int, max_value: int):
 	health_tween.set_trans(Tween.TRANS_SINE)
 	health_tween.tween_property(self, "value", current, TRANSITION_DURATION)
 	
-	_update_color(current, max_value)
+	_update_color(current, max_health)
 
-func _update_color(current: int, max_value: int):
-	var health_percentage = float(current) / float(max_value)
+func _update_color(current: int, max_health: int):
+	var health_percentage = float(current) / float(max_health)
 	var target_color = HEALTH_HIGH_COLOR
 	var target_outline = HEALTH_HIGH_OUTLINE
 	

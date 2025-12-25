@@ -51,7 +51,7 @@ func _on_body_entered(body: Node) -> void:
 		has_stuck = true
 		queue_free()
 
-func _on_area_entered(area: Area2D) -> void:
+func _on_area_entered(_area: Area2D) -> void:
 	if has_stuck:
 		return
 	# Handle area collisions if needed - can be overridden by child classes
@@ -66,7 +66,7 @@ func _should_collide_with(body: Node) -> bool:
 	# Default implementation for basic surfaces
 	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground")
 
-func _on_collision(body: Node) -> void:
+func _on_collision(_body: Node) -> void:
 	# Override this method in child classes to handle collision effects
 	# Default implementation does nothing
 	pass

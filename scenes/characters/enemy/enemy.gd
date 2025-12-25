@@ -12,13 +12,13 @@ const MIN_PITCH = 1.5
 const MAX_PITCH = 3.0
 
 # Sound arrays
-var hurt_sounds = [
+var hurt_sounds: Array[AudioStream] = [
 	preload("res://sounds/enemy_hurt/hurt.mp3"),
 	preload("res://sounds/enemy_hurt/hurt2.mp3"),
 	preload("res://sounds/enemy_hurt/hurt3.mp3")
 ]
 
-var death_sounds = [
+var death_sounds: Array[AudioStream] = [
 	preload("res://sounds/enemy_death/enemy-death.mp3"),
 	preload("res://sounds/enemy_death/enemy-death2.mp3"),
 	preload("res://sounds/enemy_death/enemy-death3.mp3"),
@@ -66,32 +66,6 @@ func _play_hurt_sound():
 	# Remove after sound finishes
 	audio_player.finished.connect(audio_player.queue_free)
 
-func _play_death_sound():
-	# Play KO sound first
-	var ko_player = AudioStreamPlayer.new()
-	ko_player.stream = KO_SOUND
-	ko_player.volume_db = 0.0  # Normal volume for KO sound
-	
-	add_child(ko_player)
-	ko_player.play()
-	
-	# Play random death sound after a short delay
-	await get_tree().create_timer(0.1).timeout
-	
-	var random_sound = death_sounds[randi() % death_sounds.size()]
-	var random_pitch = randf_range(MIN_PITCH, MAX_PITCH)
-	
-	var death_player = AudioStreamPlayer.new()
-	death_player.stream = random_sound
-	death_player.pitch_scale = random_pitch
-	death_player.volume_db = -3.0  # Slightly quieter for balance
-	
-	add_child(death_player)
-	death_player.play()
-	
-	# Remove audio players after sounds finish
-	ko_player.finished.connect(ko_player.queue_free)
-	death_player.finished.connect(death_player.queue_free)
 
 func _spawn_blood_splash(hit_direction: Vector2 = Vector2.ZERO):
 	# Create blood splash effect
@@ -185,8 +159,11 @@ func _start_death_animation():
 	# Trigger slow-time effect with 10% chance on enemy death
 	TimeUtils.trigger_slow_time()
 	
-	# Play death sounds (KO + random death sound)
-	_play_death_sound()
+	# Play KO sound with random pitch
+	AudioUtils.play_positioned_sound(KO_SOUND, global_position, 0.8, 1.5)
+	
+	# Play random death sound with random pitch
+	AudioUtils.play_death_sound(death_sounds, global_position)
 	
 	# Spawn final blood burst
 	_spawn_blood_splash(Vector2.ZERO)

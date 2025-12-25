@@ -15,6 +15,10 @@ run/main_scene="uid://c5chywouv085q"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+BloodTextureManager="*res://scripts/utils/blood_texture_manager.gd"
+
 [input]
 
 toggle_rotation={
@@ -27,7 +31,3 @@ toggle_rotation={
 
 textures/canvas_textures/default_texture_filter=0
 environment/defaults/default_clear_color=Color(0.3019608, 0.5019608, 0.3019608, 1)
-
-[autoload]
-
-BloodTextureManager="*res://scripts/utils/blood_texture_manager.gd"

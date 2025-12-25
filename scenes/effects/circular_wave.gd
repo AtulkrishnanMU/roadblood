@@ -86,4 +86,22 @@ func _on_body_entered(body):
 	if body.is_in_group("enemies"):
 		# Kill the enemy instantly
 		print("CircularWave: Killing enemy: ", body)
-		body.take_damage(DAMAGE, (body.global_position - global_position).normalized())
+		var was_killed = body.take_damage(DAMAGE, (body.global_position - global_position).normalized())
+		
+		# Increment kill counter and combo only if enemy was killed
+		if was_killed:
+			# Increment player combo streak
+			var player_ref = get_tree().get_first_node_in_group("player")
+			if player_ref:
+				print("CircularWave: Found player, incrementing combo")
+				player_ref.increment_combo_streak()
+			else:
+				print("CircularWave: Could not find player for combo")
+			
+			# Notify enemy spawner to increase kill count
+			var spawner = get_tree().get_first_node_in_group("enemy_spawner")
+			if spawner:
+				print("CircularWave: Found enemy spawner, incrementing kill count")
+				spawner.increment_kill_count()
+			else:
+				print("CircularWave: Enemy spawner not found")

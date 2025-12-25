@@ -14,11 +14,11 @@ static func play_random_pitch(audio, min_pitch: float = 0.9, max_pitch: float = 
 # Pool management functions
 static func _get_audio_player() -> AudioStreamPlayer2D:
 	if _audio_pool.size() > 0:
-		var audio = _audio_pool.pop_back()
+		var audio_player = _audio_pool.pop_back()
 		# Remove from current parent if it has one
-		if audio.get_parent():
-			audio.get_parent().remove_child(audio)
-		return audio
+		if audio_player.get_parent():
+			audio_player.get_parent().remove_child(audio_player)
+		return audio_player
 	
 	var audio = AudioStreamPlayer2D.new()
 	audio.finished.connect(_return_audio_player.bind(audio))

@@ -23,7 +23,7 @@ const BULLET_SPREAD_ANGLE = 15.0  # spread angle for multi-bullets (degrees)
 
 # Utility references
 const TimeUtils = preload("res://scripts/utils/time_utils.gd")
-const AudioUtils = preload("res://scripts/utils/audio_utils.gd")
+const AudioUtilsScript = preload("res://scripts/utils/audio_utils.gd")
 
 # Multi-bullet system
 var multi_bullet_enabled = false
@@ -109,7 +109,7 @@ func apply_combo_healing():
 	print("Applying combo healing for streak: ", combo_streak)
 	if combo_streak > 0:
 		# Calculate heal potential using triangular formula: n(n+1)/2
-		var heal_potential = combo_streak * (combo_streak + 1) / 2
+		var heal_potential = combo_streak * (combo_streak + 1) / 2.0
 		var actual_heal = heal_potential
 		
 		print("Heal potential: ", actual_heal)
@@ -390,11 +390,11 @@ func _update_health_bar():
 	if health_bar:
 		health_bar.update_health(health, MAX_HEALTH)
 
-func _create_muzzle_flash(position: Vector2):
+func _create_muzzle_flash(flash_position: Vector2):
 	# Create simple muzzle flash effect
 	var flash = Sprite2D.new()
 	add_child(flash)
-	flash.global_position = position
+	flash.global_position = flash_position
 	flash.scale = Vector2(0.5, 0.5)
 	
 	# Create a simple white/yellow flash texture

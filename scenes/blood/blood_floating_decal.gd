@@ -1,7 +1,7 @@
 extends "res://scenes/particle.gd"
 
 const BloodTextureManager = preload("res://scripts/utils/blood_texture_manager.gd")
-const RandomCache = preload("res://scripts/utils/random_cache.gd")
+const RandomCacheScript = preload("res://scripts/utils/random_cache.gd")
 
 var float_duration: float = 0.0  # How long to move before sticking
 var float_age: float = 0.0
@@ -19,23 +19,23 @@ func _ready() -> void:
 	fade_alpha_multiplier = 0.6  # Slower fade for decals
 	
 	# Use cached random values instead of generating new ones
-	var cache_index = RandomCache.get_random_index()
-	float_duration = RandomCache.get_scale(cache_index) * 0.02  # Adjust to 0.03-0.05 range (extremely short)
+	var cache_index = RandomCacheScript.get_random_index()
+	float_duration = RandomCacheScript.get_scale(cache_index) * 0.02  # Adjust to 0.03-0.05 range (extremely short)
 	
 	# Use cached fade times
-	var fade_times = RandomCache.get_fade_times(cache_index)
+	var fade_times = RandomCacheScript.get_fade_times(cache_index)
 	fade_start_time = fade_times.x * 0.56 + 1.56  # Adjust to 3.0-5.0 range
 	fade_duration = fade_times.y * 0.75 + 0.25  # Adjust to 0.4-1.38 range (much shorter)
 	
 	# Set random drift for floating effect using cached values
-	float_drift = RandomCache.get_drift(cache_index)
+	float_drift = RandomCacheScript.get_drift(cache_index)
 	
 	# Add random size variation using cached values
-	var random_scale = RandomCache.get_scale(cache_index) * 0.96 + 0.84  # Adjust to 0.84-1.8 range (bigger)
+	var random_scale = RandomCacheScript.get_scale(cache_index) * 0.96 + 0.84  # Adjust to 0.84-1.8 range (bigger)
 	scale = Vector2(random_scale, random_scale)
 	
 	# Set random rotation speed for spinning effect
-	rotation_speed = RandomCache.get_rotation(cache_index) * 5.0  # 0 to 10*PI radians per second
+	rotation_speed = RandomCacheScript.get_rotation(cache_index) * 5.0  # 0 to 10*PI radians per second
 	
 	super._ready()
 
@@ -107,7 +107,7 @@ func _should_collide_with(body: Node) -> bool:
 		return false
 	return body is TileMap or body.is_in_group("walls") or body.is_in_group("ground") or body.is_in_group("colliders") or body.is_in_group("enemies") or body.is_in_group("player")
 
-func _on_collision(body: Node) -> void:
+func _on_collision(_body: Node) -> void:
 	# Floating decals don't create additional decals on collision
 	# They just stick to whatever they hit
 	if not has_stuck_in_air:

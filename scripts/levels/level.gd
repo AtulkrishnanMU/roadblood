@@ -29,7 +29,7 @@ func _on_combo_streak_changed(current: int) -> void:
 		
 		# Update combo total label with calculated HP
 		if combo_total_label:
-			var total_hp = current * (current + 1) / 2
+			var total_hp = current * (current + 1) / 2.0
 			combo_total_label.text = "HP: +" + str(total_hp)
 			combo_total_label.visible = true
 			_fade_in_combo_element(combo_total_label)

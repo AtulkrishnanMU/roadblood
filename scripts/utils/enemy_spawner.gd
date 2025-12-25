@@ -59,7 +59,7 @@ func spawn_enemies():
 	
 	if kill_count >= 5:
 		# Every 5 kills after 5, add one more enemy (max 3 total)
-		var kill_thresholds = floor((kill_count - 5) / KILLS_PER_EXTRA_ENEMY) + 1
+		var kill_thresholds = floor((kill_count - 5) / float(KILLS_PER_EXTRA_ENEMY)) + 1
 		enemies_to_spawn = min(kill_thresholds + 1, 3)  # +1 for the base enemy, max 3
 	
 	print("EnemySpawner: Kill count: ", kill_count, ", Spawning ", enemies_to_spawn, " enemies")
@@ -112,7 +112,7 @@ func increment_kill_count():
 		wave_timer = 0.0  # Reset timer for next wave
 	
 	# Calculate new spawn interval based on kills (capped at MAX_SPEED_INCREASES)
-	var speed_increases = min(kill_count / KILLS_PER_SPEED_UP, MAX_SPEED_INCREASES)
+	var speed_increases = min(kill_count / float(KILLS_PER_SPEED_UP), MAX_SPEED_INCREASES)
 	var reduction = speed_increases * 0.3  # Reduce interval by 0.3s per speed increase
 	current_spawn_interval = max(MIN_SPAWN_INTERVAL, BASE_SPAWN_INTERVAL - reduction)
 	

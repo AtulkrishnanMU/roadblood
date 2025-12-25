@@ -2,7 +2,7 @@ extends Node2D
 
 const BLOOD_DROPLET_SCENE := preload("res://scenes/blood/blood_droplet.tscn")
 const BLOOD_FLOATING_DECAL_SCENE := preload("res://scenes/blood/blood_floating_decal.tscn")
-const RandomCache = preload("res://scripts/utils/random_cache.gd")
+const RandomCacheScript = preload("res://scripts/utils/random_cache.gd")
 
 const DROPLET_COUNT := 12
 const FLOATING_DECAL_COUNT := 12  # Increased from 4 to 12 (3x more floating particles)
@@ -31,19 +31,19 @@ func _spawn_blood_droplets() -> void:
 		if droplet:
 			add_child(droplet)
 			# Create circular burst effect - particles spread in all directions
-			var cache_index = RandomCache.get_random_index()
+			var cache_index = RandomCacheScript.get_random_index()
 			# Full 360-degree spread for circular burst
-			var angle = RandomCache.get_rotation(cache_index)  # 0 to 2*PI
+			var angle = RandomCacheScript.get_rotation(cache_index)  # 0 to 2*PI
 			# Use cached speed values
-			var speed = RandomCache.get_speed_dead(cache_index) if is_dead_enemy else RandomCache.get_speed_normal(cache_index)
+			var speed = RandomCacheScript.get_speed_dead(cache_index) if is_dead_enemy else RandomCacheScript.get_speed_normal(cache_index)
 			var velocity_dir = Vector2.RIGHT.rotated(angle)
 			
 			# Start from center position
-			droplet.position = RandomCache.get_position_8(cache_index)
+			droplet.position = RandomCacheScript.get_position_8(cache_index)
 			droplet.velocity = velocity_dir * speed
-			droplet.lifetime = RandomCache.get_scale(cache_index) * 0.67 + 1.5  # Adjust to 1.5-2.5 range
+			droplet.lifetime = RandomCacheScript.get_scale(cache_index) * 0.67 + 1.5  # Adjust to 1.5-2.5 range
 			# Add random rotation using cached values
-			droplet.rotation = RandomCache.get_rotation(cache_index)
+			droplet.rotation = RandomCacheScript.get_rotation(cache_index)
 	
 	# Spawn floating blood decals in circular burst
 	for i in range(floating_decal_count):
@@ -51,15 +51,15 @@ func _spawn_blood_droplets() -> void:
 		if floating_decal:
 			add_child(floating_decal)
 			# Create circular burst effect - particles spread in all directions
-			var cache_index = RandomCache.get_random_index()
+			var cache_index = RandomCacheScript.get_random_index()
 			# Full 360-degree spread for circular burst
-			var angle = RandomCache.get_rotation(cache_index)  # 0 to 2*PI
+			var angle = RandomCacheScript.get_rotation(cache_index)  # 0 to 2*PI
 			
 			# Use cached speed values
-			var speed = RandomCache.get_speed_dead(cache_index) if is_dead_enemy else RandomCache.get_speed_normal(cache_index)
+			var speed = RandomCacheScript.get_speed_dead(cache_index) if is_dead_enemy else RandomCacheScript.get_speed_normal(cache_index)
 			var velocity_dir = Vector2.RIGHT.rotated(angle)
 			
-			floating_decal.position = RandomCache.get_position_6(cache_index)
+			floating_decal.position = RandomCacheScript.get_position_6(cache_index)
 			floating_decal.velocity = velocity_dir * speed
 			# Add random rotation using cached values
-			floating_decal.rotation = RandomCache.get_rotation(cache_index)
+			floating_decal.rotation = RandomCacheScript.get_rotation(cache_index)

@@ -10,14 +10,14 @@ var droplet_textures: Array[ImageTexture] = []
 var floating_decal_textures: Array[ImageTexture] = []
 
 const TEXTURE_COUNT = 16  # Number of variations per type
-const RandomCache = preload("res://scripts/utils/random_cache.gd")
+const RandomCacheScript = preload("res://scripts/utils/random_cache.gd")
 
 func _ready() -> void:
 	if instance == null:
 		instance = self
 		_generate_textures()
 		# Initialize random cache
-		RandomCache.new()
+		RandomCacheScript.new()
 
 func _generate_textures() -> void:
 	# Generate all textures at startup instead of runtime

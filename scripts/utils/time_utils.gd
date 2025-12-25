@@ -26,8 +26,22 @@ func _process(delta):
 			_disable_slow_time()
 
 static func trigger_slow_time():
-	if instance and not instance.is_slow_time_active and randf() <= SLOW_TIME_CHANCE:
-		instance._enable_slow_time()
+	if instance and not instance.is_slow_time_active:
+		# Get current enemy count
+		var enemy_count = 0
+		var enemies = instance.get_tree().get_nodes_in_group("enemies")
+		enemy_count = enemies.size()
+		
+		# Calculate slow-time chance inversely proportional to enemy count
+		# Base chance is 10% for 1 enemy, decreases as more enemies spawn
+		var base_chance = 0.1
+		var calculated_chance = base_chance / max(enemy_count, 1)
+		
+		# Ensure minimum chance of 2% and maximum of 20%
+		calculated_chance = clamp(calculated_chance, 0.02, 0.2)
+		
+		if randf() <= calculated_chance:
+			instance._enable_slow_time()
 
 func _enable_slow_time():
 	is_slow_time_active = true
