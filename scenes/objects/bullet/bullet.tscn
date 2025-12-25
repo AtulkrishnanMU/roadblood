@@ -5,8 +5,10 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
 size = Vector2(12, 12)
 
-[node name="Bullet" type="Area2D"]
-script = ExtResource("BulletScript")
+[node name="Bullet" type="CharacterBody2D"]
+collision_layer = 1
+collision_mask = 2
+script = ExtResource( "BulletScript" )
 
 [node name="ColorRect" type="ColorRect" parent="."]
 custom_minimum_size = Vector2(12, 12)

@@ -1,0 +1,48 @@
+[gd_scene load_steps=4 format=3 uid="uid://dyrfq5k4ckrpv"]
+
+[ext_resource type="Script" uid="uid://gyv77fnyaboh" path="res://scenes/characters/enemy/big_rat.gd" id="BigRatScript"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(70.58321, 43.400276)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_2"]
+size = Vector2(55, 35)
+
+[node name="BigRat" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 15
+script = ExtResource("BigRatScript")
+
+[node name="ColorRect" type="ColorRect" parent="."]
+custom_minimum_size = Vector2(55, 35)
+offset_left = -30.0
+offset_top = -30.0
+offset_right = 25.0
+offset_bottom = 5.0
+color = Color(0.5, 0, 0, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(-1, -13.000001)
+scale = Vector2(1.2730104, 1.34666)
+shape = SubResource("RectangleShape2D_1")
+disabled = true
+
+[node name="SpriteCollision" type="CollisionShape2D" parent="."]
+position = Vector2(-2.5, -12.5)
+shape = SubResource("RectangleShape2D_2")
+
+[node name="BulletDetector" type="Area2D" parent="."]
+
+[node name="BulletCollision" type="CollisionShape2D" parent="BulletDetector"]
+position = Vector2(-1, -13.000001)
+scale = Vector2(1.2730104, 1.34666)
+shape = SubResource("RectangleShape2D_1")
+
+[node name="FoodDetector" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 8
+
+[node name="FoodCollision" type="CollisionShape2D" parent="FoodDetector"]
+position = Vector2(-1.6142746, -13.186823)
+scale = Vector2(0.77598417, 0.8208785)
+shape = SubResource("RectangleShape2D_1")

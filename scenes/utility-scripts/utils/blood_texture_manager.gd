@@ -10,7 +10,7 @@ var droplet_textures: Array[ImageTexture] = []
 var floating_decal_textures: Array[ImageTexture] = []
 
 const TEXTURE_COUNT = 16  # Number of variations per type
-const RandomCacheScript = preload("res://scripts/utils/random_cache.gd")
+const RandomCacheScript = preload("res://scenes/utility-scripts/utils/random_cache.gd")  # Updated path
 
 func _ready() -> void:
 	if instance == null:

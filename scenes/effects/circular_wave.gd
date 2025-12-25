@@ -18,7 +18,7 @@ func _ready():
 	_create_wave_visual()
 	
 	# Set up collision detection
-	body_entered.connect(_on_body_entered)
+	area_entered.connect(_on_area_entered)
 	
 	# Position at player
 	if player:
@@ -82,11 +82,14 @@ func _update_collision_shape():
 	circle_shape.radius = current_radius
 	collision_shape.shape = circle_shape
 
-func _on_body_entered(body):
-	if body.is_in_group("enemies"):
+func _on_area_entered(area):
+	if area.is_in_group("enemies"):
+		# Get the parent enemy 
+		var enemy = area.get_parent()
+		
 		# Kill the enemy instantly
-		print("CircularWave: Killing enemy: ", body)
-		var was_killed = body.take_damage(DAMAGE, (body.global_position - global_position).normalized())
+		print("CircularWave: Killing enemy: ", enemy)
+		var was_killed = enemy.take_damage(DAMAGE, (enemy.global_position - global_position).normalized())
 		
 		# Increment kill counter and combo only if enemy was killed
 		if was_killed:
@@ -98,7 +101,7 @@ func _on_body_entered(body):
 			else:
 				print("CircularWave: Could not find player for combo")
 			
-			# Notify enemy spawner to increase kill count
+			# Notify enemy spawner to increase spawn count
 			var spawner = get_tree().get_first_node_in_group("enemy_spawner")
 			if spawner:
 				print("CircularWave: Found enemy spawner, incrementing kill count")

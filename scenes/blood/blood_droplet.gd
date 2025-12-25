@@ -1,8 +1,8 @@
 extends "res://scenes/particle.gd"
 
 const BLOOD_DECAL_SCENE := preload("res://scenes/blood/blood_decal.tscn")
-const BloodTextureManager = preload("res://scripts/utils/blood_texture_manager.gd")
-const RandomCacheScript = preload("res://scripts/utils/random_cache.gd")
+const BloodTextureManager = preload("res://scenes/utility-scripts/utils/blood_texture_manager.gd")
+const RandomCacheScript = preload("res://scenes/utility-scripts/utils/random_cache.gd")
 
 var fade_start_time: float = 0.0  # Randomized - when fading begins
 var fade_duration: float = 0.0  # Randomized - how long fading takes

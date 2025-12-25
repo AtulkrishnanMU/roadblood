@@ -2,7 +2,7 @@ extends Node2D
 
 const BLOOD_DROPLET_SCENE := preload("res://scenes/blood/blood_droplet.tscn")
 const BLOOD_FLOATING_DECAL_SCENE := preload("res://scenes/blood/blood_floating_decal.tscn")
-const RandomCacheScript = preload("res://scripts/utils/random_cache.gd")
+const RandomCacheScript = preload("res://scenes/utility-scripts/utils/random_cache.gd")
 
 const DROPLET_COUNT := 12
 const FLOATING_DECAL_COUNT := 12  # Increased from 4 to 12 (3x more floating particles)

@@ -9,21 +9,21 @@ const FLOAT_HEIGHT = 20.0
 const ROTATION_SPEED = 2.0  # radians per second
 const BULLET_SCENE = preload("res://scenes/objects/bullet/bullet.tscn")
 const GUNSHOT_SOUND_PATH = "res://sounds/gunshot.mp3"
-const KNOCKBACK_FORCE = 800.0  # knockback force when shooting (increased from 500)
+const KNOCKBACK_FORCE = 50.0  # knockback force when shooting (made very subtle)
 const BARREL_LENGTH = 40  # length of the barrel rectangle
 const BARREL_WIDTH = 20
 const HIT_SOUND = preload("res://sounds/hit.mp3")  # hit sound effect
 const HEALTH_GAIN_SOUND = preload("res://sounds/health-gain.mp3")  # health gain sound effect
 const BLOOD_SPLASH_SCENE = preload("res://scenes/blood/blood_splash.tscn")  # blood splash effect
-const SCREEN_SHAKE_INTENSITY = 2.5  # screen shake intensity (reduced for subtlety)
-const SCREEN_SHAKE_DURATION = 0.5  # screen shake duration in seconds (reduced for subtlety)
-const MOVEMENT_SPEED = 400.0  # player movement speed with arrow keys
+const SCREEN_SHAKE_INTENSITY = 0.5  # screen shake intensity (very subtle)
+const SCREEN_SHAKE_DURATION = 0.1  # screen shake duration in seconds (very short)
+const MOVEMENT_SPEED = 1000.0  # player movement speed with arrow keys
 const MULTI_BULLET_KILLS = 30  # kills needed to enable multi-bullet shooting
 const BULLET_SPREAD_ANGLE = 15.0  # spread angle for multi-bullets (degrees)
 
 # Utility references
-const TimeUtils = preload("res://scripts/utils/time_utils.gd")
-const AudioUtilsScript = preload("res://scripts/utils/audio_utils.gd")
+const TimeUtils = preload("res://scenes/utility-scripts/utils/time_utils.gd")
+const AudioUtilsScript = preload("res://scenes/utility-scripts/utils/audio_utils.gd")
 
 # Multi-bullet system
 var multi_bullet_enabled = false
@@ -225,16 +225,20 @@ func _physics_process(delta):
 	# Apply knockback decay with ease-out
 	knockback_velocity = knockback_velocity.move_toward(Vector2.ZERO, 200.0 * delta)
 	
-	# Handle arrow key movement
+	# Handle WASD and arrow key movement
 	var movement_input = Vector2.ZERO
-	if Input.is_action_pressed("ui_right"):
-		movement_input.x += 1
-	if Input.is_action_pressed("ui_left"):
-		movement_input.x -= 1
-	if Input.is_action_pressed("ui_down"):
-		movement_input.y += 1
-	if Input.is_action_pressed("ui_up"):
+	
+	# Vertical movement (W/S or Up/Down)
+	if Input.is_key_pressed(KEY_W) or Input.is_action_pressed("ui_up"):
 		movement_input.y -= 1
+	if Input.is_key_pressed(KEY_S) or Input.is_action_pressed("ui_down"):
+		movement_input.y += 1
+	
+	# Horizontal movement (A/D or Left/Right)
+	if Input.is_key_pressed(KEY_A) or Input.is_action_pressed("ui_left"):
+		movement_input.x -= 1
+	if Input.is_key_pressed(KEY_D) or Input.is_action_pressed("ui_right"):
+		movement_input.x += 1
 	
 	# Apply movement if there's input
 	if movement_input.length() > 0:
@@ -276,6 +280,10 @@ func _physics_process(delta):
 	if camera:
 		var mouse_pos = get_global_mouse_position()
 		shoot_angle = (mouse_pos - global_position).angle()
+		
+		# Move camera slightly towards aiming direction
+		var camera_offset = Vector2.from_angle(shoot_angle) * 100.0  # 100 pixels offset
+		camera.global_position = lerp(camera.global_position, global_position + camera_offset, 0.1)
 	
 	# Shoot on left mouse click (single click detection)
 	var is_mouse_pressed = Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
@@ -358,7 +366,7 @@ func take_damage(amount: int, knockback_direction: Vector2 = Vector2.ZERO):
 	
 	# Apply knockback to player
 	if knockback_direction != Vector2.ZERO:
-		knockback_velocity = knockback_direction * 900.0  # Increased from 600 for more impact
+		knockback_velocity = knockback_direction * 100.0  # Reduced to make knockback very subtle
 	
 	# Apply combo healing before taking damage if combo is active
 	apply_combo_healing()

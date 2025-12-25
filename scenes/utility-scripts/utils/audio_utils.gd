@@ -74,7 +74,7 @@ static func play_death_sound(death_sounds: Array[AudioStream], position: Vector2
 	# Randomly select one death sound from the array
 	var sound_to_play = death_sounds[randi() % death_sounds.size()]
 	
-	play_positioned_sound(sound_to_play, position, 0.9, 1.1)
+	play_positioned_sound(sound_to_play, position, 1.4, 2.0)
 
 # Plays hurt sound at position
 static func play_hurt_sound(hurt_sound: AudioStream, position: Vector2) -> void:

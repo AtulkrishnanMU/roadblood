@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b8v7yaq2r3m4n"]
 
-[ext_resource type="Script" path="res://scripts/utils/blood_texture_manager.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/utility-scripts/utils/blood_texture_manager.gd" id="1"]
 
 [node name="BloodTextureManager" type="Node"]
 script = ExtResource("1")
@@ -10,4 +10,4 @@ script = ExtResource("1")
 [autoload]
 
 name="BloodTextureManager"
-node_path="res://scripts/utils/blood_texture_manager.gd"
+node_path="res://scenes/utility-scripts/utils/blood_texture_manager.gd"

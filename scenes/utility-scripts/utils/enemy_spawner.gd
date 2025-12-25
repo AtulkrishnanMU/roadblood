@@ -1,6 +1,7 @@
 extends Node2D
 
-const ENEMY_SCENE = preload("res://scenes/characters/enemy/enemy.tscn")
+const BASIC_RAT_SCENE = preload("res://scenes/characters/enemy/basic_rat.tscn")
+const BIG_RAT_SCENE = preload("res://scenes/characters/enemy/big_rat.tscn")
 const CIRCULAR_WAVE_SCENE = preload("res://scenes/effects/circular_wave.tscn")
 const BASE_SPAWN_INTERVAL = 3.0  # base seconds between spawns
 const SPAWN_RADIUS = 1200.0  # distance from player to spawn enemies (increased from 800)
@@ -9,6 +10,7 @@ const MIN_SPAWN_INTERVAL = 0.5  # minimum spawn interval (fastest possible)
 const MAX_SPEED_INCREASES = 8  # maximum number of speed increases (caps at 8*5=40 kills)
 const KILLS_PER_SPEED_UP = 5  # kills needed to increase spawn rate
 const KILLS_PER_EXTRA_ENEMY = 5  # kills needed to spawn extra enemy
+const KILLS_PER_BIG_RAT = 10  # kills needed to start spawning big rats
 const WAVE_TRIGGER_KILLS = 50  # kills needed to start wave spawning
 const WAVE_INTERVAL = 10.0  # seconds between waves after trigger
 
@@ -71,6 +73,15 @@ func spawn_enemies():
 func spawn_single_enemy():
 	print("EnemySpawner: Spawning enemy at player position: ", player.global_position)
 	
+	# Determine enemy type based on kill count
+	var enemy_scene: PackedScene
+	if kill_count >= KILLS_PER_BIG_RAT and randf() < 0.3:  # 30% chance for big rat after threshold
+		enemy_scene = BIG_RAT_SCENE
+		print("EnemySpawner: Spawning Big Rat")
+	else:
+		enemy_scene = BASIC_RAT_SCENE
+		print("EnemySpawner: Spawning Basic Rat")
+	
 	# Generate random angle around player
 	var random_angle = randf() * 2.0 * PI
 	
@@ -83,7 +94,7 @@ func spawn_single_enemy():
 	print("EnemySpawner: Spawn position calculated: ", spawn_position)
 	
 	# Spawn the enemy
-	var enemy = ENEMY_SCENE.instantiate()
+	var enemy = enemy_scene.instantiate()
 	get_parent().add_child(enemy)
 	enemy.global_position = spawn_position
 	

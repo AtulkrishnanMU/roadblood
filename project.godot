@@ -17,7 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
-BloodTextureManager="*res://scripts/utils/blood_texture_manager.gd"
+BloodTextureManager="*res://scenes/utility-scripts/utils/blood_texture_manager.gd"
 
 [input]
 

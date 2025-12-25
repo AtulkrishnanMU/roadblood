@@ -1,7 +1,7 @@
 extends "res://scenes/particle.gd"
 
-const BloodTextureManager = preload("res://scripts/utils/blood_texture_manager.gd")
-const RandomCacheScript = preload("res://scripts/utils/random_cache.gd")
+const BloodTextureManager = preload("res://scenes/utility-scripts/utils/blood_texture_manager.gd")
+const RandomCacheScript = preload("res://scenes/utility-scripts/utils/random_cache.gd")
 
 var float_duration: float = 0.0  # How long to move before sticking
 var float_age: float = 0.0

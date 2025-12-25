@@ -6,8 +6,8 @@ var fade_start_time: float = 0.0  # Randomized - when fading begins
 var fade_duration: float = 0.0  # Randomized - how long fading takes
 var age: float = 0.0  # Track age for fading
 
-const BloodTextureManager = preload("res://scripts/utils/blood_texture_manager.gd")
-const RandomCacheScript = preload("res://scripts/utils/random_cache.gd")
+const BloodTextureManager = preload("res://scenes/utility-scripts/utils/blood_texture_manager.gd")
+const RandomCacheScript = preload("res://scenes/utility-scripts/utils/random_cache.gd")
 
 func _ready() -> void:
 	# Set a unique watery blood texture appearance using pre-generated textures and cached random values
