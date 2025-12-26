@@ -25,15 +25,18 @@ func _spawn_blood_droplets() -> void:
 	var droplet_count = DEAD_ENEMY_DROPLET_COUNT if is_dead_enemy else DROPLET_COUNT
 	var floating_decal_count = DEAD_ENEMY_FLOATING_DECAL_COUNT if is_dead_enemy else FLOATING_DECAL_COUNT
 	
-	# Spawn regular falling droplets in circular burst
+	# Spawn regular falling droplets in directional burst
 	for i in range(droplet_count):
 		var droplet = BLOOD_DROPLET_SCENE.instantiate()
 		if droplet:
 			add_child(droplet)
-			# Create circular burst effect - particles spread in all directions
+			# Create directional burst effect - particles spread in attack direction
 			var cache_index = RandomCacheScript.get_random_index()
-			# Full 360-degree spread for circular burst
-			var angle = RandomCacheScript.get_rotation(cache_index)  # 0 to 2*PI
+			# Spread around the attack direction (±60 degrees cone)
+			var base_angle = direction.angle()
+			var spread_angle = randf_range(-PI/3, PI/3)  # ±60 degrees
+			var angle = base_angle + spread_angle
+			
 			# Use cached speed values
 			var speed = RandomCacheScript.get_speed_dead(cache_index) if is_dead_enemy else RandomCacheScript.get_speed_normal(cache_index)
 			var velocity_dir = Vector2.RIGHT.rotated(angle)
@@ -45,15 +48,17 @@ func _spawn_blood_droplets() -> void:
 			# Add random rotation using cached values
 			droplet.rotation = RandomCacheScript.get_rotation(cache_index)
 	
-	# Spawn floating blood decals in circular burst
+	# Spawn floating blood decals in directional burst
 	for i in range(floating_decal_count):
 		var floating_decal = BLOOD_FLOATING_DECAL_SCENE.instantiate()
 		if floating_decal:
 			add_child(floating_decal)
-			# Create circular burst effect - particles spread in all directions
+			# Create directional burst effect - particles spread in attack direction
 			var cache_index = RandomCacheScript.get_random_index()
-			# Full 360-degree spread for circular burst
-			var angle = RandomCacheScript.get_rotation(cache_index)  # 0 to 2*PI
+			# Spread around the attack direction (±60 degrees cone)
+			var base_angle = direction.angle()
+			var spread_angle = randf_range(-PI/3, PI/3)  # ±60 degrees
+			var angle = base_angle + spread_angle
 			
 			# Use cached speed values
 			var speed = RandomCacheScript.get_speed_dead(cache_index) if is_dead_enemy else RandomCacheScript.get_speed_normal(cache_index)

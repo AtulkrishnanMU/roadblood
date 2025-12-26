@@ -9,4 +9,4 @@ func _ready():
 	MAX_HEALTH = 20  # More health than basic_rat (10)
 	DAMAGE = 25  # More damage than basic_rat (15)
 	SCORE_VALUE = 200  # Big rats give more score than basic rats
-	health = MAX_HEALTH
+	# Health is now managed by HealthComponent in base_enemy.gd

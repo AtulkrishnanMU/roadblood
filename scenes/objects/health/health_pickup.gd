@@ -2,14 +2,16 @@ extends Area2D
 
 class_name HealthPickup
 
+# Import floating behavior
+const FloatingBehavior = preload("res://scenes/utility-scripts/utils/floating_behavior.gd")
+
 const HEAL_AMOUNT = 25
-const FLOAT_SPEED = 50.0
-const FLOAT_HEIGHT = 20.0
 const LIFETIME = 10.0  # Health pickups disappear after 10 seconds
 const HEALTH_GAIN_SOUND = preload("res://sounds/health-gain.mp3")  # Same as player
 
-var time = 0.0
-var base_y = 0.0
+# Floating behavior
+var floating_behavior: FloatingBehavior
+
 var player: CharacterBody2D
 var is_collected = false
 
@@ -21,6 +23,9 @@ func _ready():
 	# Add to health pickups group
 	add_to_group("health_pickups")
 	
+	# Initialize floating behavior
+	floating_behavior = FloatingBehavior.new(self)
+	
 	# Find player reference
 	player = get_tree().get_first_node_in_group("player")
 	
@@ -29,28 +34,15 @@ func _ready():
 	
 	# Set up collision detection
 	body_entered.connect(_on_body_entered)
-	
-	# Store initial Y position for floating animation
-	base_y = position.y
 
 func _create_visuals():
-	# Create sprite (pink circle)
+	# Create simple colored rectangle instead of procedural texture
 	sprite = Sprite2D.new()
 	var texture = ImageTexture.new()
 	var image = Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	image.fill(Color.TRANSPARENT)
 	
-	# Draw pink circle
-	var center = Vector2(16, 16)
-	var radius = 14
-	for x in range(32):
-		for y in range(32):
-			var pos = Vector2(x, y)
-			var dist = pos.distance_to(center)
-			if dist <= radius:
-				# Create gradient effect
-				var brightness = 1.0 - (dist / radius) * 0.3
-				image.set_pixel(x, y, Color(1.0, 0.7, 0.8, brightness))  # Pink with gradient
+	# Fill entire image with solid pink color - much simpler than circle drawing
+	image.fill(Color(1.0, 0.7, 0.8, 1.0))  # Solid pink
 	
 	texture.set_image(image)
 	sprite.texture = texture
@@ -64,16 +56,11 @@ func _create_visuals():
 	add_child(collision_shape)
 
 func _physics_process(delta):
-	time += delta
-	
-	# Floating animation
-	var float_phase = time * FLOAT_SPEED * 0.1
-	var smooth_float = smoothstep(-1.0, 1.0, sin(float_phase))
-	var float_offset = smooth_float * FLOAT_HEIGHT
-	position.y = base_y + float_offset
+	# Update floating animation using centralized behavior
+	floating_behavior.update_floating(self, delta)
 	
 	# Remove after lifetime
-	if time >= LIFETIME:
+	if floating_behavior.time >= LIFETIME:
 		_fade_out_and_remove()
 
 func _on_body_entered(body):
@@ -101,22 +88,14 @@ func _on_body_entered(body):
 			tween.tween_callback(queue_free).set_delay(1.0)
 
 func _spawn_health_popup():
-	const PopupUtils = preload("res://scenes/utility-scripts/utils/popup_utils.gd")
-	# Create a custom pink health popup with flicker effect
-	PopupUtils.spawn_floating_popup(self, "+" + str(HEAL_AMOUNT) + " HP", Color(1.0, 0.7, 0.8), Vector2(0, -50), 64)
+	# Use PopupManager for health popup with flicker effect
+	var popup_mgr = get_tree().get_first_node_in_group("popup_manager")
+	if popup_mgr:
+		popup_mgr.spawn_floating_popup(self, "+" + str(HEAL_AMOUNT) + " HP", Color(1.0, 0.7, 0.8), Vector2(0, -50), 64)
 
 func _play_health_gain_sound():
-	# Create non-positional audio player for health gain sound
-	var audio_player = AudioStreamPlayer.new()
-	audio_player.stream = HEALTH_GAIN_SOUND
-	audio_player.volume_db = 3.0  # Louder than full volume for health gain sound
-	
-	# Add to scene and play
-	add_child(audio_player)
-	audio_player.play()
-	
-	# Remove after sound finishes
-	audio_player.finished.connect(audio_player.queue_free)
+	# Use AudioUtils pool for health gain sound with increased volume for better feedback
+	AudioUtils.play_positioned_sound(HEALTH_GAIN_SOUND, global_position, 0.9, 1.1, 15.0)
 
 func _fade_out_and_remove():
 	# Fade out animation before removing

@@ -18,6 +18,9 @@ config/icon="res://icon.svg"
 [autoload]
 
 BloodTextureManager="*res://scenes/utility-scripts/utils/blood_texture_manager.gd"
+PopupManager="*res://scenes/utility-scripts/utils/popup_manager.gd"
+UIStyleCache="*res://scenes/utility-scripts/utils/ui_style_cache.gd"
+UIEventManager="*res://scenes/utility-scripts/utils/ui_event_manager.gd"
 
 [input]
 

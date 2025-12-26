@@ -30,18 +30,16 @@ var waves_enabled = false
 func _ready():
 	# Try to find the player initially
 	player = get_tree().get_first_node_in_group("player")
-	print("EnemySpawner: Initial player found: ", player != null)
-	
+		
 	# Add to enemy_spawner group for bullet communication
 	add_to_group("enemy_spawner")
-	print("EnemySpawner: Added to enemy_spawner group")
-
+	
 func _process(delta):
 	# Try to find player if not already found
 	if not player:
 		player = get_tree().get_first_node_in_group("player")
 		if player:
-			print("EnemySpawner: Player found during runtime!")
+			pass  # Player found
 	
 	spawn_timer += delta
 	
@@ -53,13 +51,11 @@ func _process(delta):
 			wave_timer = 0.0
 	
 	if spawn_timer >= current_spawn_interval:
-		print("EnemySpawner: Attempting to spawn enemies")
 		spawn_enemies()
 		spawn_timer = 0.0
 
 func spawn_enemies():
 	if not player:
-		print("EnemySpawner: No player found!")
 		return
 	
 	# Calculate how many enemies to spawn based on kill count
@@ -70,35 +66,29 @@ func spawn_enemies():
 		var kill_thresholds = floor((kill_count - 5) / float(KILLS_PER_EXTRA_ENEMY)) + 1
 		enemies_to_spawn = min(kill_thresholds + 1, 3)  # +1 for the base enemy, max 3
 	
-	print("EnemySpawner: Kill count: ", kill_count, ", Spawning ", enemies_to_spawn, " enemies")
 	
 	# Spawn the calculated number of enemies
 	for i in range(enemies_to_spawn):
 		spawn_single_enemy()
 
 func spawn_single_enemy():
-	print("EnemySpawner: Spawning enemy from room edge")
 	
 	# Determine enemy type based on kill count
 	var enemy_scene: PackedScene
 	if kill_count >= KILLS_PER_BIG_RAT and randf() < 0.3:  # 30% chance for big rat after threshold
 		enemy_scene = BIG_RAT_SCENE
-		print("EnemySpawner: Spawning Big Rat")
 	else:
 		enemy_scene = BASIC_RAT_SCENE
-		print("EnemySpawner: Spawning Basic Rat")
 	
 	# Get random position on room edge
 	var spawn_position = _get_random_position_on_room_edge()
 	
-	print("EnemySpawner: Spawn position calculated: ", spawn_position)
 	
 	# Spawn the enemy
 	var enemy = enemy_scene.instantiate()
 	get_parent().add_child(enemy)
 	enemy.global_position = spawn_position
 	
-	print("EnemySpawner: Enemy spawned successfully")
 	
 	# Add fade-in effect
 	_fade_in_enemy(enemy)
@@ -153,19 +143,17 @@ func _get_random_position_on_room_edge() -> Vector2:
 
 func increment_kill_count():
 	kill_count += 1
-	print("EnemySpawner: Kill count increased to: ", kill_count)
 	
 	# Update kill counter in UI
 	var ui = get_tree().get_first_node_in_group("ui")
 	if ui:
 		ui.update_kill_counter(kill_count)
 	else:
-		print("EnemySpawner: UI not found for kill counter update")
+		pass  # UI not found
 	
 	# Check if we should enable wave spawning
 	if kill_count >= WAVE_TRIGGER_KILLS and not waves_enabled:
 		waves_enabled = true
-		print("EnemySpawner: Wave spawning enabled at ", kill_count, " kills!")
 		# Spawn first wave immediately using call_deferred to avoid physics error
 		call_deferred("spawn_circular_wave")
 		wave_timer = 0.0  # Reset timer for next wave
@@ -175,14 +163,11 @@ func increment_kill_count():
 	var reduction = speed_increases * 0.3  # Reduce interval by 0.3s per speed increase
 	current_spawn_interval = max(MIN_SPAWN_INTERVAL, BASE_SPAWN_INTERVAL - reduction)
 	
-	print("EnemySpawner: New spawn interval: ", current_spawn_interval, " seconds (speed increases: ", speed_increases, "/", MAX_SPEED_INCREASES, ")")
 
 func spawn_circular_wave():
 	if not player:
-		print("EnemySpawner: No player found for wave!")
 		return
 	
-	print("EnemySpawner: Spawning circular wave at player position")
 	
 	# Spawn the circular wave
 	var wave = CIRCULAR_WAVE_SCENE.instantiate()

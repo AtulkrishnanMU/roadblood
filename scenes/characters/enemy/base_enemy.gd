@@ -39,22 +39,34 @@ var death_sounds: Array[AudioStream] = [
 ]
 
 const KO_SOUND = preload("res://sounds/hit-KO.mp3")
-const BLOOD_SPLASH_SCENE = preload("res://scenes/blood/blood_splash.tscn")
 
 # Utility references
 const TimeUtils = preload("res://scenes/utility-scripts/utils/time_utils.gd")
 const AudioUtils = preload("res://scenes/utility-scripts/utils/audio_utils.gd")
 const PopupUtils = preload("res://scenes/utility-scripts/utils/popup_utils.gd")
+const BloodEffectsManager = preload("res://scenes/utility-scripts/utils/blood_effects_manager.gd")
+const HealthComponent = preload("res://scenes/utility-scripts/utils/health_component.gd")
+const CacheManager = preload("res://scenes/utility-scripts/utils/cache_manager.gd")
+const UIEventManager = preload("res://scenes/utility-scripts/utils/ui_event_manager.gd")
 
 var player: CharacterBody2D
 var current_target: Node
 var attack_timer = 0.0
 var knockback_velocity = Vector2.ZERO
-var health: int = MAX_HEALTH
+var health_component: HealthComponent
 var is_dying = false
 var death_timer = 0.0
 var rotation_speed = 0.0
 var fall_velocity = 0.0
+
+# Cached references for performance
+var _player_cache: CharacterBody2D = null
+var _target_update_timer: float = 0.0
+const TARGET_UPDATE_INTERVAL = 0.2  # Update target every 200ms
+var _spawner_cache: Node = null
+var _ui_cache: Node = null
+var _popup_manager_cache: Node = null
+var _ui_event_manager_cache: Node = null
 
 # Continuous attack variables
 var is_attacking_food = false
@@ -63,12 +75,23 @@ var continuous_attack_timer = 0.0
 var CONTINUOUS_ATTACK_INTERVAL = 2.0  # Attack every 2 seconds while in contact
 
 # Eating sound variables
-var eating_sound_player: AudioStreamPlayer
+var eating_sound_player: AudioStreamPlayer2D
 
 func _ready():
 	add_to_group("enemies")
 	# Find the player reference
 	player = get_tree().get_first_node_in_group("player")
+	
+	# Initialize health component
+	health_component = HealthComponent.new(self, MAX_HEALTH)
+	
+	# Connect health component signals
+	health_component.health_depleted.connect(_on_health_depleted)
+	health_component.damage_taken.connect(_on_damage_taken)
+	
+	# Initialize eating sound player for AudioUtils running sound system
+	eating_sound_player = AudioStreamPlayer2D.new()
+	add_child(eating_sound_player)
 	
 	# Set up bullet detection Area2D
 	var bullet_detector = $BulletDetector
@@ -76,11 +99,38 @@ func _ready():
 		bullet_detector.body_entered.connect(_on_bullet_hit)
 		bullet_detector.add_to_group("enemies")  # Add Area2D to enemies group for wave detection
 	
+	# Initialize cached references
+	_initialize_cached_references()
+	
 	# Set up food detection Area2D
 	var food_detector = $FoodDetector
 	if food_detector:
 		food_detector.area_entered.connect(_on_food_collision)
 		food_detector.area_exited.connect(_on_food_exit)
+
+func _initialize_cached_references():
+	# Cache frequently accessed nodes
+	_player_cache = get_tree().get_first_node_in_group("player")
+	player = _player_cache  # Update reference
+	_spawner_cache = get_tree().get_first_node_in_group("enemy_spawner")
+	_ui_cache = get_tree().get_first_node_in_group("ui")
+	_popup_manager_cache = get_tree().get_first_node_in_group("popup_manager")
+	_ui_event_manager_cache = get_tree().get_first_node_in_group("ui_event_manager")
+	_target_update_timer = 0.0
+
+func _on_health_depleted():
+	_start_death_animation()
+
+func _on_damage_taken(amount: int):
+	# Increment player combo streak immediately for feedback (cached)
+	if _player_cache == null or not is_instance_valid(_player_cache):
+		_player_cache = CacheManager.get_first_node_in_group_cached("player", get_tree())
+	if _player_cache:
+		_player_cache.increment_combo_streak()
+	
+	# Play hurt sound when damaged (but not when dying)
+	if health_component.health > 0:
+		_play_hurt_sound()
 
 func _on_food_collision(body):
 	if body.is_in_group("food"):
@@ -126,112 +176,59 @@ func _on_food_exit(body):
 
 func _on_bullet_hit(body):
 	if body.is_in_group("bullets"):
-		print("DEBUG: _on_bullet_hit called")
 		# Calculate knockback direction (from enemy to bullet)
 		var knockback_direction = (global_position - body.global_position).normalized()
 		
 		# Take damage and check if killed
 		var was_killed = take_damage(10, knockback_direction)
-		print("DEBUG: Enemy was_killed: ", was_killed)
 		
 		# Destroy bullet
 		body.queue_free()
 		
-		# Trigger slow-time effect only if enemy was killed
-		if was_killed:
-			print("DEBUG: Processing enemy death")
-			TimeUtils.trigger_slow_time()
-			
-			# Add score for killing this enemy
-			var ui = get_tree().get_first_node_in_group("ui")
-			if ui:
-				print("DEBUG: Enemy killed, adding ", SCORE_VALUE, " points")
-				ui.add_to_score(SCORE_VALUE)
-				# Use centralized popup system
-				PopupUtils.spawn_score_popup(self, SCORE_VALUE)
-			else:
-				print("DEBUG: UI not found for score addition")
-			
-			# Notify enemy spawner to increase spawn frequency
-			var spawner = get_tree().get_first_node_in_group("enemy_spawner")
-			if spawner:
-				print("DEBUG: Enemy death - calling increment_kill_count")
-				spawner.increment_kill_count()
-			else:
-				print("DEBUG: Enemy death - spawner not found")
-			
-			# Increment individual kill count for milestone tracking
-			if ui:
-				print("DEBUG: About to call ui.increment_kill_count")
-				ui.increment_kill_count()
-			else:
-				print("DEBUG: UI not found for milestone tracking")
+		# Death processing is now centralized in _start_death_animation()
+		# which is called automatically when health is depleted via health component signal
 
 func _play_hurt_sound():
-	# Play random hurt sound with random pitch
+	# Use AudioUtils pool for hurt sound
 	var random_sound = hurt_sounds[randi() % hurt_sounds.size()]
-	var random_pitch = randf_range(MIN_PITCH, MAX_PITCH)
-	
-	# Create audio player
-	var audio_player = AudioStreamPlayer.new()
-	audio_player.stream = random_sound
-	audio_player.pitch_scale = random_pitch
-	audio_player.volume_db = -5.0  # Slightly quieter for balance
-	
-	# Add to scene and play
-	add_child(audio_player)
-	audio_player.play()
-	
-	# Remove after sound finishes
-	audio_player.finished.connect(audio_player.queue_free)
+	AudioUtils.play_positioned_sound(random_sound, global_position, MIN_PITCH, MAX_PITCH)
 
 func _spawn_blood_splash(hit_direction: Vector2 = Vector2.ZERO):
-	# Create blood splash effect
-	var blood_splash = BLOOD_SPLASH_SCENE.instantiate()
-	if blood_splash:
-		# Add to scene at bottom layer (first to be drawn)
-		var scene = get_tree().current_scene
-		if scene:
-			scene.add_child(blood_splash)
-			scene.move_child(blood_splash, 0)
-			
-			# Position at enemy location
-			blood_splash.global_position = global_position
-			
-			# Set direction based on hit direction or random if none
-			if hit_direction != Vector2.ZERO:
-				blood_splash.set_direction(-hit_direction)  # Blood splashes opposite to hit direction
-			else:
-				blood_splash.set_direction(Vector2.from_angle(randf() * TAU))
-			
-			# Mark as dead enemy for reduced blood if dying
-			if is_dying:
-				blood_splash.set_dead_enemy(true)
+	# Use centralized blood effects manager
+	BloodEffectsManager.spawn_enemy_blood_splash(global_position, hit_direction, is_dying, self)
 
 func _find_target():
 	# Check if this enemy targets food or player
 	if targets_food:
-		# Find nearest food
-		var food_objects = get_tree().get_nodes_in_group("food")
+		# Find nearest food (cached)
+		var food_objects = CacheManager.get_nodes_in_group_cached("food", get_tree())
 		if food_objects.size() > 0:
 			current_target = _get_nearest_node(food_objects)
 		else:
-			# If no food available, fall back to player
-			current_target = player
+			# If no food available, fall back to cached player
+			if _player_cache == null or not is_instance_valid(_player_cache):
+				_player_cache = CacheManager.get_first_node_in_group_cached("player", get_tree())
+			current_target = _player_cache
 	else:
-		# Target player
-		current_target = player
+		# Target cached player
+		if _player_cache == null or not is_instance_valid(_player_cache):
+			_player_cache = CacheManager.get_first_node_in_group_cached("player", get_tree())
+		current_target = _player_cache
 
 func _get_nearest_node(nodes: Array) -> Node:
 	if nodes.is_empty():
 		return null
 	
-	var nearest_node = nodes[0]
-	var nearest_distance = global_position.distance_to(nearest_node.global_position)
+	var nearest_node = null
+	var nearest_distance = INF
 	
+	# Filter out invalid nodes and find nearest valid one
 	for node in nodes:
+		if not is_instance_valid(node):
+			continue  # Skip freed nodes
+			
 		var distance = global_position.distance_to(node.global_position)
-		if distance < nearest_distance:
+		if nearest_node == null or distance < nearest_distance:
 			nearest_distance = distance
 			nearest_node = node
 	
@@ -241,6 +238,16 @@ func _physics_process(delta):
 	# Skip all processing if dying
 	if is_dying:
 		return
+	
+	# Update target cache periodically
+	_target_update_timer += delta
+	if _target_update_timer >= TARGET_UPDATE_INTERVAL:
+		_find_target()
+		_target_update_timer = 0.0
+	
+	# Periodic cache cleanup (every 2 seconds)
+	if Engine.get_process_frames() % 120 == 0:  # 120 frames = ~2 seconds at 60 FPS
+		CacheManager.cleanup_invalid_references()
 	
 	# Update attack cooldown
 	if attack_timer > 0:
@@ -258,9 +265,8 @@ func _physics_process(delta):
 		move_and_slide()
 		return  # Skip normal movement when being knocked back
 	
-	# Find and follow target
-	_find_target()
-	if current_target:
+	# Follow cached target
+	if current_target and is_instance_valid(current_target):
 		var direction = (current_target.global_position - global_position).normalized()
 		
 		# Move towards target
@@ -306,50 +312,37 @@ func take_damage(damage: int, knockback_direction: Vector2):
 	# Apply knockback
 	knockback_velocity = knockback_direction * KNOCKBACK_FORCE
 	
-	# Take damage
-	health = max(health - damage, 0)
+	# Use health component to handle damage (signals handle combo, sounds, and effects)
+	var was_killed = health_component.take_damage(damage, knockback_direction, true)
 	
-	# Spawn blood splash effect
-	_spawn_blood_splash(knockback_direction)
-	
-	# Increment player combo streak immediately for feedback
-	var player = get_tree().get_first_node_in_group("player")
-	if player:
-		player.increment_combo_streak()
-	
-	# Play hurt sound when damaged (but not when dying)
-	if health > 0:
-		_play_hurt_sound()
-	
-	# Check if enemy should die
-	if health <= 0:
-		_start_death_animation()
-		return true  # Enemy was killed
-	
-	return false  # Enemy survived
+	return was_killed  # Enemy was killed if health depleted
 
 func _start_death_animation():
 	is_dying = true
-	# Enemy death logic
 	
-	print("DEBUG: Processing enemy death")
+	# Add score using cached UI event manager
+	if _ui_event_manager_cache == null or not is_instance_valid(_ui_event_manager_cache):
+		_ui_event_manager_cache = CacheManager.get_first_node_in_group_cached("ui_event_manager", get_tree())
+	if _ui_event_manager_cache:
+		_ui_event_manager_cache.add_score(SCORE_VALUE)
 	
-	# Add score for killing this enemy
-	var ui = get_tree().get_first_node_in_group("ui")
-	if ui:
-		print("DEBUG: Enemy killed, adding ", SCORE_VALUE, " points")
-		ui.add_to_score(SCORE_VALUE)
-		# Use centralized popup system
-		PopupUtils.spawn_score_popup(self, SCORE_VALUE)
+	# Use PopupManager for score popup (cached)
+	if _popup_manager_cache and is_instance_valid(_popup_manager_cache):
+		_popup_manager_cache.spawn_floating_popup(self, "+" + str(SCORE_VALUE), Color.YELLOW, Vector2(0, -50), 64)
 	else:
-		print("DEBUG: UI not found for score addition")
+		_popup_manager_cache = CacheManager.get_first_node_in_group_cached("popup_manager", get_tree())
+		if _popup_manager_cache:
+			_popup_manager_cache.spawn_floating_popup(self, "+" + str(SCORE_VALUE), Color.YELLOW, Vector2(0, -50), 64)
 	
-	# Notify enemy spawner to increase spawn frequency
-	var spawner = get_tree().get_first_node_in_group("enemy_spawner")
-	if spawner:
-		spawner.increment_kill_count()
+	# Notify enemy spawner to increase spawn frequency and update UI kill counter
+	if _spawner_cache and is_instance_valid(_spawner_cache):
+		_spawner_cache.increment_kill_count()
+	else:
+		_spawner_cache = CacheManager.get_first_node_in_group_cached("enemy_spawner", get_tree())
+		if _spawner_cache:
+			_spawner_cache.increment_kill_count()
 	
-	# Trigger slow-time effect with 10% chance on enemy death
+	# Trigger slow-time effect
 	TimeUtils.trigger_slow_time()
 	
 	# Play KO sound with random pitch
@@ -365,24 +358,10 @@ func _start_death_animation():
 	queue_free()
 
 func _start_eating_sound():
-	# Create non-positional audio player for eating sound
-	if eating_sound_player == null:
-		eating_sound_player = AudioStreamPlayer.new()
-		add_child(eating_sound_player)
-	
-	eating_sound_player.stream = EATING_SOUND
-	eating_sound_player.volume_db = -2.0  # Moderate volume for eating sound
-	eating_sound_player.play()
-	
-	# Connect to loop the sound
-	if not eating_sound_player.finished.is_connected(_on_eating_sound_finished):
-		eating_sound_player.finished.connect(_on_eating_sound_finished)
+	# Use AudioUtils for consistent eating sound playback
+	AudioUtils.play_running_sound(eating_sound_player, EATING_SOUND)
 
 func _stop_eating_sound():
+	# Stop the eating sound directly
 	if eating_sound_player and eating_sound_player.playing:
 		eating_sound_player.stop()
-
-func _on_eating_sound_finished():
-	# Restart eating sound to create continuous loop
-	if is_attacking_food and eating_sound_player:
-		eating_sound_player.play()

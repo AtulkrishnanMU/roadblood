@@ -29,8 +29,7 @@ func _find_room_bounds():
 	else:
 		# Fallback: use a default room size
 		room_bounds = Rect2(100, 100, 1000, 600)
-		print("HealthSpawner: Using default room bounds")
-
+		
 func _on_spawn_timer_timeout():
 	# Check if we can spawn more health pickups
 	var current_health_pickups = get_tree().get_nodes_in_group("health_pickups").size()
@@ -51,8 +50,7 @@ func _spawn_health_pickup():
 	if health_pickup:
 		health_pickup.position = spawn_position
 		get_tree().current_scene.add_child(health_pickup)
-		print("Health pickup spawned at: ", spawn_position)
-
+		
 func stop_spawning():
 	# Stop the spawn timer
 	if spawn_timer:

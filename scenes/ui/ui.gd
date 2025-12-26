@@ -1,5 +1,8 @@
 extends Control
 
+# Preload UI style cache
+const UIStyleCache = preload("res://scenes/utility-scripts/utils/ui_style_cache.gd")
+
 const HEALTH_HIGH_COLOR = Color(0.2, 0.8, 0.2, 1)  # Green for high health (>50%)
 const HEALTH_MEDIUM_COLOR = Color(0.8, 0.8, 0.2, 1)  # Yellow for medium health (<50%)
 const HEALTH_LOW_COLOR = Color(0.8, 0.2, 0.2, 1)   # Red for low health (<20%)
@@ -18,6 +21,18 @@ var total_kills: int = 0
 var total_score: int = 0
 
 func _ready():
+	# Initialize UI style cache
+	UIStyleCache.initialize_cache()
+	
+	# Create and setup UI event manager
+	var ui_event_manager_script = preload("res://scenes/utility-scripts/utils/ui_event_manager.gd")
+	var ui_event_manager = ui_event_manager_script.new()
+	add_child(ui_event_manager)
+	ui_event_manager.add_to_group("ui_event_manager")
+	
+	# Setup UI event manager connections
+	ui_event_manager.setup(self)
+	
 	# Find the health bar and labels
 	var health_bar = get_node_or_null("HealthBar")
 	if health_bar:
@@ -31,11 +46,13 @@ func _ready():
 	kill_counter_label = get_node_or_null("HealthBar/KillCounterLabel")
 	score_label = get_node_or_null("ScoreLabel")
 	
-	# Apply default font to UI labels
+	# Apply font config first, then cached styles to UI labels
 	if kill_counter_label:
 		FontConfig.apply_ui_font(kill_counter_label)
+		UIStyleCache.apply_style(kill_counter_label, UIStyleCache.StyleType.SCORE_LABEL)
 	if score_label:
 		FontConfig.apply_ui_font(score_label)
+		UIStyleCache.apply_style(score_label, UIStyleCache.StyleType.SCORE_LABEL)
 	
 	# Initialize displays
 	update_kill_counter(0)
@@ -93,8 +110,9 @@ func _update_fill_color(color: Color):
 	if not health_bar:
 		return
 		
-	var fill_style = health_bar.get_theme_stylebox("fill").duplicate()
-	if fill_style is StyleBoxFlat:
+	# Use cached style instead of duplicating
+	var fill_style = UIStyleCache.get_style(UIStyleCache.StyleType.HEALTH_BAR, 0)
+	if fill_style and fill_style is StyleBoxFlat:
 		fill_style.bg_color = color
 		fill_style.border_color = color  # Update fill border color to match fill
 		health_bar.add_theme_stylebox_override("fill", fill_style)
@@ -104,8 +122,9 @@ func _update_outline_color(color: Color):
 	if not health_bar:
 		return
 		
-	var bg_style = health_bar.get_theme_stylebox("background").duplicate()
-	if bg_style is StyleBoxFlat:
+	# Use cached style instead of duplicating
+	var bg_style = UIStyleCache.get_style(UIStyleCache.StyleType.BACKGROUND_PANEL)
+	if bg_style and bg_style is StyleBoxFlat:
 		bg_style.border_color = color
 		health_bar.add_theme_stylebox_override("background", bg_style)
 

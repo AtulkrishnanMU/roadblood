@@ -7,8 +7,8 @@
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2food" path="res://scenes/objects/food/food.tscn" id="6_eokde"]
 [ext_resource type="Script" uid="uid://dl7am6qsh2ul0" path="res://scenes/levels/level.gd" id="6_level_script"]
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2room" path="res://scenes/objects/room/room.tscn" id="7_room"]
-[ext_resource type="PackedScene" uid="uid://bvxw8y7q2healthspawner" path="res://scenes/objects/health/health_spawner.tscn" id="8_health_spawner"]
-[ext_resource type="PackedScene" uid="uid://bvxw8y7q2musicmanager" path="res://scenes/utility-scripts/utils/music_manager.tscn" id="9_music_manager"]
+[ext_resource type="PackedScene" uid="uid://cxcel6kyrduoj" path="res://scenes/objects/health/health_spawner.tscn" id="8_health_spawner"]
+[ext_resource type="PackedScene" path="res://scenes/utility-scripts/utils/music_manager.tscn" id="9_music_manager"]
 
 [node name="LevelTemplate" type="Node2D"]
 script = ExtResource("6_level_script")

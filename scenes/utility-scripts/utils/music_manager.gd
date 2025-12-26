@@ -29,14 +29,12 @@ func play_background_music():
 	if not is_playing and music_player:
 		music_player.play()
 		is_playing = true
-		print("Background music started")
-
+		
 func stop_background_music():
 	if is_playing and music_player:
 		music_player.stop()
 		is_playing = false
-		print("Background music stopped")
-
+		
 func set_volume(volume_db: float):
 	if music_player:
 		music_player.volume_db = volume_db

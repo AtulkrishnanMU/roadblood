@@ -5,14 +5,25 @@ const MAX_RADIUS = 800.0  # Maximum radius of the wave
 const LIFETIME = 3.0  # How long the wave exists
 const DAMAGE = 999  # Instant kill damage
 
+# Utility reference
+const CacheManager = preload("res://scenes/utility-scripts/utils/cache_manager.gd")
+
 var current_radius = 0.0
 var lifetime_timer = 0.0
 var player: CharacterBody2D
 var wave_sprite: Sprite2D
 
+# Cached references for performance
+var _spawner_cache: Node = null
+var _enemy_cache: Array = []
+var _processed_enemies: Array = []  # Track already processed enemies to avoid duplicate kills
+
 func _ready():
-	# Find the player
+	# Find the player (cached)
 	player = get_tree().get_first_node_in_group("player")
+	
+	# Cache spawner reference
+	_spawner_cache = get_tree().get_first_node_in_group("enemy_spawner")
 	
 	# Create visual wave effect
 	_create_wave_visual()
@@ -87,16 +98,25 @@ func _on_area_entered(area):
 		# Get the parent enemy 
 		var enemy = area.get_parent()
 		
+		# Skip if already processed or invalid
+		if not enemy or not is_instance_valid(enemy) or enemy in _processed_enemies:
+			return
+		
+		# Mark as processed to prevent duplicate kills
+		_processed_enemies.append(enemy)
+		
 		# Kill the enemy instantly
-		print("CircularWave: Killing enemy: ", enemy)
 		var was_killed = enemy.take_damage(DAMAGE, (enemy.global_position - global_position).normalized())
 		
-		# Increment kill counter and combo only if enemy was killed
+		# Increment kill counter and combo only if enemy was killed (cached)
 		if was_killed:
-			# Notify enemy spawner to increase spawn count
-			var spawner = get_tree().get_first_node_in_group("enemy_spawner")
-			if spawner:
-				print("CircularWave: Found enemy spawner, incrementing kill count")
-				spawner.increment_kill_count()
+			if _spawner_cache and is_instance_valid(_spawner_cache):
+				_spawner_cache.increment_kill_count()
 			else:
-				print("CircularWave: Enemy spawner not found")
+				# Fallback to cache manager
+				_spawner_cache = CacheManager.get_first_node_in_group_cached("enemy_spawner", get_tree())
+				if _spawner_cache:
+					_spawner_cache.increment_kill_count()
+				else:
+					pass  # No spawner found
+					

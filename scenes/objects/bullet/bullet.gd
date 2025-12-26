@@ -40,8 +40,8 @@ func _physics_process(delta):
 			return
 
 func _on_enemy_hit(enemy):
-	# Calculate knockback direction (from enemy to bullet)
-	var knockback_direction = (enemy.global_position - global_position).normalized()
+	# Calculate knockback direction (same as bullet travel direction)
+	var knockback_direction = direction.normalized()
 	
 	# Damage enemy with knockback and check if killed
 	var was_killed = enemy.take_damage(10, knockback_direction)

@@ -2,39 +2,38 @@ extends Node2D
 
 class_name FoodObject
 
-var health: int
-var max_health: int
+# Import floating behavior and health component
+const FloatingBehavior = preload("res://scenes/utility-scripts/utils/floating_behavior.gd")
+const HealthComponent = preload("res://scenes/utility-scripts/utils/health_component.gd")
+
+var health_component: HealthComponent
 var health_bar: ProgressBar
 
-# Floating animation variables
-var time = 0.0
-var base_y = 0.0
-const FLOAT_SPEED = 80.0  # Much faster float speed
-const FLOAT_HEIGHT = 20.0  # Slightly larger float height
+# Floating behavior
+var floating_behavior: FloatingBehavior
 
 func _ready():
 	add_to_group("food")
-	max_health = 200
-	health = max_health
+	
+	# Initialize health component
+	health_component = HealthComponent.new(self, 200)
+	
+	# Connect health component signal
+	health_component.health_depleted.connect(_destroy_food)
+	
+	# Initialize floating behavior with faster speed for food
+	floating_behavior = FloatingBehavior.new(self, 80.0, 20.0)
+	
 	# Get the health bar node from the scene instead of creating it programmatically
 	health_bar = $HealthBar
 	if health_bar:
-		health_bar.max_value = max_health
-		health_bar.value = health
+		health_component.health_bar = health_bar
+		health_component._update_health_bar()
 		_setup_health_bar_style()
-	
-	# Store initial Y position for floating animation
-	base_y = position.y
 
 func _physics_process(delta):
-	time += delta
-	
-	# Floating animation with ease in/out using cubic interpolation
-	var float_phase = time * FLOAT_SPEED * 0.1
-	# Use ease in/out with cubic interpolation for smooth acceleration/deceleration
-	var ease_factor = 0.5 * (1.0 + cos(float_phase * TAU))  # Cosine gives natural ease in/out
-	var float_offset = ease_factor * FLOAT_HEIGHT
-	position.y = base_y - float_offset  # Negative to float up when ease_factor is high
+	# Update floating animation using centralized behavior with cosine easing
+	floating_behavior.update_floating_cosine(self, delta)
 
 func _setup_health_bar_style():
 	# Style the health bar
@@ -63,19 +62,9 @@ func _setup_health_bar_style():
 	health_bar.add_theme_stylebox_override("background", bg_style)
 
 func take_damage(damage: int, knockback_direction: Vector2):
-	print("Food taking damage: ", damage, " current health: ", health)
-	# Food ignores knockback - stays stationary
-	health = max(health - damage, 0)
-	print("Food health after damage: ", health)
-	_update_health_bar()
+		# Food ignores knockback - stays stationary, but use health component for damage
+	health_component.take_damage(damage, Vector2.ZERO, false)  # No blood for food
 	
-	if health <= 0:
-		_destroy_food()
-
-func _update_health_bar():
-	if health_bar:
-		health_bar.value = health
-
 func _destroy_food():
 	# Create some visual effect or sound if needed
 	queue_free()

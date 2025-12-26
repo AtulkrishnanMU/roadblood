@@ -4,38 +4,45 @@ signal combo_streak_changed(current: int)
 
 @onready var color_rect = $ColorRect
 
-const FLOAT_SPEED = 50.0
-const FLOAT_HEIGHT = 20.0
-const ROTATION_SPEED = 2.0  # radians per second
+# Static utility references - cached at class level for better performance
+static var _TimeUtils: Resource = preload("res://scenes/utility-scripts/utils/time_utils.gd")
+static var _AudioUtilsScript: Resource = preload("res://scenes/utility-scripts/utils/audio_utils.gd")
+static var _BloodEffectsManager: Resource = preload("res://scenes/utility-scripts/utils/blood_effects_manager.gd")
+static var _HealthComponent: Resource = preload("res://scenes/utility-scripts/utils/health_component.gd")
+static var _CacheManager: Resource = preload("res://scenes/utility-scripts/utils/cache_manager.gd")
+static var _UIEventManager: Resource = preload("res://scenes/utility-scripts/utils/ui_event_manager.gd")
+
+# Game constants
+const ROTATION_SPEED = 4.0  # radians per second
 const BULLET_SCENE = preload("res://scenes/objects/bullet/bullet.tscn")
-const GUNSHOT_SOUND_PATH = "res://sounds/gunshot.mp3"
 const KNOCKBACK_FORCE = 50.0  # knockback force when shooting (made very subtle)
-const BARREL_LENGTH = 40  # length of the barrel rectangle
+const BARREL_LENGTH = 50  # length of the barrel rectangle
 const BARREL_WIDTH = 20
 const HIT_SOUND = preload("res://sounds/hit.mp3")  # hit sound effect
 const HEALTH_GAIN_SOUND = preload("res://sounds/health-gain.mp3")  # health gain sound effect
-const BLOOD_SPLASH_SCENE = preload("res://scenes/blood/blood_splash.tscn")  # blood splash effect
+const GUNSHOT_SOUND = preload("res://sounds/gunshot.mp3")  # gunshot sound effect
 const SCREEN_SHAKE_INTENSITY = 0.5  # screen shake intensity (very subtle)
 const SCREEN_SHAKE_DURATION = 0.1  # screen shake duration in seconds (very short)
 const MOVEMENT_SPEED = 1000.0  # player movement speed with arrow keys
 const MULTI_BULLET_KILLS = 30  # kills needed to enable multi-bullet shooting
 const BULLET_SPREAD_ANGLE = 15.0  # spread angle for multi-bullets (degrees)
 
-# Utility references
-const TimeUtils = preload("res://scenes/utility-scripts/utils/time_utils.gd")
-const PopupUtils = preload("res://scenes/utility-scripts/utils/popup_utils.gd")
-const AudioUtilsScript = preload("res://scenes/utility-scripts/utils/audio_utils.gd")
+# Helper function to get PopupManager instance (cached)
+var _popup_manager_cache: Node
+func get_popup_manager():
+	if _popup_manager_cache == null or not is_instance_valid(_popup_manager_cache):
+		_popup_manager_cache = get_tree().get_first_node_in_group("popup_manager")
+		if _popup_manager_cache == null:
+						return null
+	return _popup_manager_cache
 
 # Multi-bullet system
 var multi_bullet_enabled = false
 var current_gun_width = BARREL_WIDTH
 
-# Health management constants
+# Health management
 const MAX_HEALTH = 200
-const HEALTH_POPUP_HEIGHT = 50.0
-
-# Health management variables
-var health: int = MAX_HEALTH
+var health_component
 
 # Combo system constants
 const COMBO_DURATION = 1.0  # Seconds before combo expires
@@ -49,7 +56,6 @@ var combo_popup_label: Label = null   # Track the label for text updates
 
 var time = 0.0
 var shoot_angle = 0.0
-var base_y = 0.0
 var knockback_velocity = Vector2.ZERO
 var screen_shake_time = 0.0
 var camera: Camera2D
@@ -61,8 +67,79 @@ var shoot_timer = 0.0  # Timer for fire rate control
 const FIRE_RATE = 0.2  # Seconds between shots (5 shots per second)
 const TRIPLE_BULLET_FIRE_RATE = 0.4  # Seconds between triple bullet shots (2.5 shots per second)
 
+# Cached references for performance
+var _nearest_enemy_cache: Node = null
+var _nearest_enemy_distance: float = INF
+var _enemy_cache_update_timer: float = 0.0
+const ENEMY_CACHE_UPDATE_INTERVAL = 0.25  # Update nearest enemy every 250ms (reduced from 100ms)
+var _ui_event_manager_cache: Node = null
+var _time_utils_cache: Node = null
+
+# Optimized muzzle flash texture pool with pre-defined patterns
+static var muzzle_flash_pool: Array[ImageTexture] = []
+static var pool_initialized = false
+
+# Pre-defined texture data for muzzle flashes (8x8 pixels = 64 elements each)
+static var _predefined_patterns: Array[PackedByteArray] = [
+	# Pattern 0: Perfect circle (64 elements)
+	PackedByteArray([0,0,0,0,0,0,0,0,0,0,255,255,255,0,0,0,0,255,255,255,255,255,0,0,0,255,255,255,255,255,0,0,0,255,255,255,255,255,0,0,0,255,255,255,255,255,0,0,0,255,255,255,0,0,0,0,0,0,0,0,0,0]),
+	# Pattern 1: Fuzzy circle (64 elements)
+	PackedByteArray([0,0,0,0,0,0,0,0,0,128,255,255,128,0,0,0,128,255,255,255,255,128,0,0,128,255,255,255,255,128,0,0,128,255,255,255,255,128,0,0,128,255,255,128,0,0,0,0,0,0,0,0,0,0]),
+	# Pattern 2: Ring effect (64 elements)
+	PackedByteArray([0,0,0,0,0,0,0,0,0,0,255,255,255,0,0,0,0,255,128,128,255,0,0,0,255,128,0,128,255,0,0,0,255,128,128,255,0,0,0,0,255,255,255,0,0,0,0,0,0,0,0,0,0]),
+	# Pattern 3: Gradient circle (64 elements)
+	PackedByteArray([0,0,0,0,0,0,0,0,0,100,200,200,100,0,0,0,100,200,255,200,100,0,0,100,200,255,255,200,100,0,0,100,200,200,100,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
+	# Pattern 4: Large soft circle (64 elements)
+	PackedByteArray([0,0,0,0,0,0,0,0,0,50,150,150,50,0,0,0,50,150,200,150,50,0,0,50,150,200,200,150,50,0,0,50,150,200,150,50,0,0,0,50,150,150,50,0,0,0,0,0,0,0,0,0,0]),
+	# Pattern 5: Multi-layered circles (64 elements)
+	PackedByteArray([0,0,0,0,0,0,0,0,0,0,255,0,255,0,0,0,0,255,0,0,0,255,0,0,255,0,255,0,255,0,0,0,255,0,0,0,255,0,0,0,255,0,255,0,0,0,0,0,0,0,0,0,0]),
+	# Pattern 6: Off-center circle (64 elements)
+	PackedByteArray([0,0,0,0,0,0,0,0,0,100,200,200,100,0,0,0,100,200,255,200,100,0,0,100,200,255,255,200,100,0,0,100,200,255,200,100,0,0,0,100,200,200,100,0,0,0,0,0,0,0,0,0,0]),
+	# Pattern 7: Dense blob (64 elements)
+	PackedByteArray([0,0,0,0,0,0,0,0,0,200,255,200,0,0,0,0,200,255,255,200,0,0,0,200,255,255,255,200,0,0,0,200,255,255,200,0,0,0,0,200,255,200,0,0,0,0,0,0,0,0,0,0,0])
+]
+
+static func _initialize_muzzle_flash_pool():
+	if pool_initialized:
+		return
+	
+	# Create textures from pre-defined patterns (much faster than procedural generation)
+	for pattern_data in _predefined_patterns:
+		var texture = _create_texture_from_pattern(pattern_data)
+		muzzle_flash_pool.append(texture)
+	
+	pool_initialized = true
+
+static func _create_texture_from_pattern(pattern_data: PackedByteArray) -> ImageTexture:
+	var image := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	image.fill(Color.TRANSPARENT)
+	
+	# Apply pattern data with yellow-orange colors
+	for i in range(64):  # 8x8 = 64 pixels
+		var x = i % 8
+		var y = i / 8
+		
+		# Bounds check to prevent out of bounds error
+		var alpha = 0.0
+		if i < pattern_data.size():
+			alpha = pattern_data[i] / 255.0
+		else:
+			# Fallback: create a simple circular pattern if data is missing
+			var center = Vector2(4, 4)
+			var pos = Vector2(x, y)
+			var dist = pos.distance_to(center)
+			if dist <= 3.0:
+				alpha = 1.0 - (dist / 3.0)
+		
+		if alpha > 0:
+			var brightness = 0.7 + alpha * 0.3  # Brightness range 0.7-1.0
+			image.set_pixel(x, y, Color(brightness, brightness * 0.8, 0.0, alpha))
+	
+	var texture := ImageTexture.new()
+	texture.set_image(image)
+	return texture
+
 func _ready():
-	base_y = position.y
 	# Find the main camera
 	camera = get_viewport().get_camera_2d()
 	if camera == null:
@@ -72,11 +149,62 @@ func _ready():
 	# Add player to group for enemy detection
 	add_to_group("player")
 	
+	# Initialize health component
+	_setup_health_component()
+	
 	# Setup combo timer
 	_setup_combo_timer()
 	
-	# Initialize health bar
-	_setup_health_bar()
+	# Initialize muzzle flash texture pool
+	_initialize_muzzle_flash_pool()
+	
+	# Initialize cached references
+	_initialize_cached_references()
+
+func _initialize_cached_references():
+	# Cache frequently accessed nodes (popup_manager_cache already exists)
+	_ui_event_manager_cache = get_tree().get_first_node_in_group("ui_event_manager")
+	_time_utils_cache = get_tree().get_first_node_in_group("time_utils")
+	_nearest_enemy_cache = null
+	_nearest_enemy_distance = INF
+	_enemy_cache_update_timer = 0.0
+
+func _setup_health_component():
+	# Find the UI CanvasLayer
+	var scene_root = get_tree().current_scene
+	ui = scene_root.get_node_or_null("UI")
+	
+	# Get the actual UI Control node from within the CanvasLayer
+	var ui_control = ui.get_node_or_null("UI") if ui else null
+	
+	# Manually load and attach the UI script if not already attached
+	if ui_control and ui_control.get_script() == null:
+		var ui_script_resource = load("res://scenes/ui/ui.gd")
+		ui_control.set_script(ui_script_resource)
+	
+	ui_script = ui_control
+	
+	# Initialize health component
+	health_component = _HealthComponent.new(self, MAX_HEALTH)
+	
+	# Connect health component signals
+	health_component.health_changed.connect(_on_health_changed)
+	health_component.health_depleted.connect(_on_health_depleted)
+	health_component.damage_taken.connect(_on_damage_taken)
+
+func _on_health_changed(current: int, max_hp: int):
+	# Use cached UI event manager for health updates
+	if _ui_event_manager_cache == null or not is_instance_valid(_ui_event_manager_cache):
+		_ui_event_manager_cache = _CacheManager.get_first_node_in_group_cached("ui_event_manager", get_tree())
+	if _ui_event_manager_cache:
+		_ui_event_manager_cache.update_player_health(current, max_hp)
+
+func _on_health_depleted():
+	_die()
+
+func _on_damage_taken(amount: int):
+	# Play hit sound when damaged
+	_play_hit_sound()
 
 func _setup_combo_timer():
 	combo_timer = Timer.new()
@@ -85,38 +213,29 @@ func _setup_combo_timer():
 	add_child(combo_timer)
 
 func _create_or_update_combo_popup():
-	var scene := get_tree().current_scene
-	if scene == null:
-		return
-	
+	# Use popup manager for combo popup
 	if current_combo_popup == null:
-		# Create new persistent popup
-		current_combo_popup = Node2D.new()
-		current_combo_popup.position = (global_position + Vector2(0, -100)).round()
-		scene.add_child(current_combo_popup)
-		
-		combo_popup_label = Label.new()
-		combo_popup_label.text = "x" + str(combo_streak)
-		combo_popup_label.modulate = Color.ORANGE
-		FontConfig.apply_popup_font_with_size(combo_popup_label, 100)
-		
-		current_combo_popup.add_child(combo_popup_label)
+		var popup_mgr = get_popup_manager()
+		if popup_mgr:
+			current_combo_popup = popup_mgr.spawn_combo_popup(self, combo_streak)
+		else:
+			# Fallback: create simple combo popup manually
+						return
+		if current_combo_popup:
+			combo_popup_label = current_combo_popup.get_child(0) if current_combo_popup.get_child_count() > 0 else null
 	else:
-		# Update existing popup text
-		combo_popup_label.text = "x" + str(combo_streak)
-		# Update position to follow player
-		current_combo_popup.position = (global_position + Vector2(0, -100)).round()
+		# Update existing popup
+		var popup_mgr = get_popup_manager()
+		if popup_mgr:
+			popup_mgr.update_combo_popup(current_combo_popup, self, combo_streak)
 
 func _fade_out_combo_popup():
-	if current_combo_popup and combo_popup_label:
-		var tween = get_tree().create_tween()
-		tween.tween_property(combo_popup_label, "modulate:a", 0.0, 0.5)
-		tween.tween_callback(func(): 
-			if current_combo_popup:
-				current_combo_popup.queue_free()
-				current_combo_popup = null
-				combo_popup_label = null
-		)
+	# Use popup manager to fade out combo popup
+	var popup_mgr = get_popup_manager()
+	if popup_mgr and current_combo_popup:
+		popup_mgr.fade_out_combo_popup(current_combo_popup)
+	current_combo_popup = null
+	combo_popup_label = null
 
 func _on_combo_timer_timeout():
 	# Apply score before resetting the combo
@@ -150,8 +269,7 @@ func reset_combo_streak():
 	_fade_out_combo_popup()
 	
 	emit_signal("combo_streak_changed", 0)
-	print("Combo streak reset")
-
+	
 func apply_combo_score():
 	if combo_streak > 0:
 		# Calculate score using triangular formula: n(n+1)/2
@@ -159,73 +277,30 @@ func apply_combo_score():
 		var actual_score = int(score_potential)
 		
 		if actual_score > 0:
-			# Add score to UI
-			if ui_script:
-				ui_script.add_to_score(actual_score)
+			# Add score using cached UI event manager
+			if _ui_event_manager_cache == null or not is_instance_valid(_ui_event_manager_cache):
+				_ui_event_manager_cache = _CacheManager.get_first_node_in_group_cached("ui_event_manager", get_tree())
+			if _ui_event_manager_cache:
+				_ui_event_manager_cache.add_score(actual_score)
 			
 			# Show score popup when combo is applied
-			PopupUtils.spawn_score_popup(self, actual_score)
+			var popup_mgr = get_popup_manager()
+			if popup_mgr:
+				popup_mgr.spawn_floating_popup(self, "+" + str(actual_score), Color.YELLOW, Vector2(0, -50), 64)
 
 func _spawn_score_popup(amount: int):
-	# Play health gain sound
-	_play_health_gain_sound()
-	
-	# Use centralized popup system for health popup
-	PopupUtils.spawn_health_popup(self, amount)
+	# Use popup manager for score popup
+	var popup_mgr = get_popup_manager()
+	if popup_mgr:
+		popup_mgr.spawn_floating_popup(self, "+" + str(amount), Color.YELLOW, Vector2(0, -50), 64)
 
 func _play_health_gain_sound():
-	# Create audio player for health gain sound
-	var audio_player = AudioStreamPlayer.new()
-	audio_player.stream = HEALTH_GAIN_SOUND
-	audio_player.volume_db = -2.0  # Slightly quieter for balance
-	
-	# Add to scene and play
-	add_child(audio_player)
-	audio_player.play()
-	
-	# Remove after sound finishes
-	audio_player.finished.connect(audio_player.queue_free)
+	# Use AudioUtils pool for health gain sound
+	_AudioUtilsScript.play_positioned_sound(HEALTH_GAIN_SOUND, global_position, 0.9, 1.1)
 
 func _spawn_blood_splash(hit_direction: Vector2 = Vector2.ZERO):
-	# Create blood splash effect
-	var blood_splash = BLOOD_SPLASH_SCENE.instantiate()
-	if blood_splash:
-		# Add to scene at bottom layer (first to be drawn)
-		var scene = get_tree().current_scene
-		if scene:
-			scene.add_child(blood_splash)
-			scene.move_child(blood_splash, 0)
-			
-			# Position at player location
-			blood_splash.global_position = global_position
-			
-			# Set direction based on hit direction or random if none
-			if hit_direction != Vector2.ZERO:
-				blood_splash.set_direction(-hit_direction)  # Blood splashes opposite to hit direction
-			else:
-				blood_splash.set_direction(Vector2.from_angle(randf() * TAU))
-			
-			# Player is not a dead enemy, so no reduced blood
-			blood_splash.set_dead_enemy(false)
-
-func _setup_health_bar():
-	# Find the UI CanvasLayer
-	var scene_root = get_tree().current_scene
-	ui = scene_root.get_node_or_null("UI")
-	
-	# Get the actual UI Control node from within the CanvasLayer
-	var ui_control = ui.get_node_or_null("UI") if ui else null
-	
-	# Manually load and attach the UI script if not already attached
-	if ui_control and ui_control.get_script() == null:
-		var ui_script_resource = load("res://scenes/ui/ui.gd")
-		ui_control.set_script(ui_script_resource)
-	
-	ui_script = ui_control
-	
-	# Initialize health bar with current health
-	if ui_script:
-		ui_script.update_health(health, MAX_HEALTH)
+	# Use centralized blood effects manager
+	_BloodEffectsManager.spawn_player_blood_splash(global_position, hit_direction, self)
 
 func _physics_process(delta):
 	time += delta
@@ -258,12 +333,11 @@ func _physics_process(delta):
 	# Simple movement
 	move_and_slide()
 	
-	# Update base_y to follow movement
-	base_y = position.y
-	
 	# Update combo popup position to follow player
 	if current_combo_popup:
-		current_combo_popup.position = (global_position + Vector2(0, -100)).round()
+		var popup_mgr = get_popup_manager()
+		if popup_mgr:
+			popup_mgr.update_combo_popup(current_combo_popup, self, combo_streak)
 	
 	# Update screen shake
 	if screen_shake_time > 0:
@@ -277,20 +351,6 @@ func _physics_process(delta):
 	else:
 		if camera:
 			camera.offset = Vector2.ZERO
-	
-	# Remove floating behavior to maintain full player control
-	# Commented out to prevent unwanted position changes
-	# if knockback_velocity.length() < 1.0:  # Player is essentially idle
-	#	var float_phase = time * FLOAT_SPEED * 0.1
-	#	var smooth_float = smoothstep(-1.0, 1.0, sin(float_phase))  # Ease-in and ease-out
-	#	var float_offset = smooth_float * FLOAT_HEIGHT
-	#	
-	#	# Always update base_y to current position minus current float offset
-	#	base_y = position.y - float_offset
-	#	
-	#	# Smoothly interpolate to floating position
-	#	var target_y = base_y + float_offset
-	#	position.y = lerp(position.y, target_y, 0.1)  # Smooth transition
 	
 	# Auto-aim towards nearest enemy with smooth rotation
 	if camera:
@@ -324,17 +384,37 @@ func _physics_process(delta):
 	queue_redraw()
 
 func _find_nearest_enemy():
-	var enemies = get_tree().get_nodes_in_group("enemies")
-	var nearest_enemy = null
-	var nearest_distance = INF
+	# Use cached nearest enemy with periodic updates
+	_enemy_cache_update_timer += get_physics_process_delta_time()
 	
-	for enemy in enemies:
-		var distance = global_position.distance_to(enemy.global_position)
-		if distance < nearest_distance:
-			nearest_distance = distance
-			nearest_enemy = enemy
+	# Smart cache invalidation based on multiple factors
+	var should_update = false
 	
-	return nearest_enemy
+	# Update if interval passed
+	if _enemy_cache_update_timer >= ENEMY_CACHE_UPDATE_INTERVAL:
+		should_update = true
+	
+	# Update if cache is invalid
+	elif _nearest_enemy_cache == null or not is_instance_valid(_nearest_enemy_cache):
+		should_update = true
+	
+	# Update if player moved significantly from cached enemy position
+	elif _nearest_enemy_cache and _nearest_enemy_distance != INF:
+		var current_distance = global_position.distance_to(_nearest_enemy_cache.global_position)
+		var distance_change = abs(current_distance - _nearest_enemy_distance)
+		# Update if distance changed by more than 20% or 50 pixels
+		if distance_change > max(_nearest_enemy_distance * 0.2, 50.0):
+			should_update = true
+	
+	if should_update:
+		_nearest_enemy_cache = _CacheManager.get_nearest_enemy_cached(global_position, get_tree())
+		if _nearest_enemy_cache:
+			_nearest_enemy_distance = global_position.distance_to(_nearest_enemy_cache.global_position)
+		else:
+			_nearest_enemy_distance = INF
+		_enemy_cache_update_timer = 0.0
+	
+	return _nearest_enemy_cache
 
 func _auto_shoot():
 	# Check fire rate - use slower rate for triple bullets
@@ -345,11 +425,12 @@ func _auto_shoot():
 	# Reset shoot timer
 	shoot_timer = 0.0
 	
-	# Check if we're in slow-time by accessing TimeUtils directly
-	var time_utils = get_tree().get_first_node_in_group("time_utils")
+	# Check if we're in slow-time by using cached time utils
 	var is_slow_time = false
-	if time_utils:
-		is_slow_time = time_utils.is_slow_time_active
+	if _time_utils_cache == null or not is_instance_valid(_time_utils_cache):
+		_time_utils_cache = _CacheManager.get_first_node_in_group_cached("time_utils", get_tree())
+	if _time_utils_cache:
+		is_slow_time = _time_utils_cache.is_slow_time_active
 	
 	if is_slow_time:
 		# Increment counter during slow-time
@@ -390,8 +471,9 @@ func _create_bullet_at_angle(angle: float):
 	if abs(angle - shoot_angle) < 0.1:  # Only apply effects for center bullet
 		screen_shake_time = SCREEN_SHAKE_DURATION
 		
-		# Create muzzle flash effect at barrel tip
-		_create_muzzle_flash(barrel_tip)
+		# Create muzzle flash effect slightly in front of barrel tip
+		var flash_position = spawn_position + shoot_direction * 35.0  # 20 pixels in front of barrel
+		_create_muzzle_flash(flash_position, shoot_direction)
 		
 		# Play gunshot sound
 		_play_gunshot_sound()
@@ -401,103 +483,87 @@ func check_multi_bullet_unlock(total_kills: int):
 	if total_kills >= MULTI_BULLET_KILLS and not multi_bullet_enabled:
 		multi_bullet_enabled = true
 		current_gun_width = BARREL_WIDTH * 2  # Double the gun width
-		print("Multi-bullet mode unlocked at ", total_kills, " kills!")
-		# Visual feedback could be added here
+				# Visual feedback could be added here
 
-# Health management functions (based on ashbreaker)
+# Health management functions (using centralized HealthComponent)
 func take_damage(amount: int, knockback_direction: Vector2 = Vector2.ZERO):
-	# Play hit sound
-	_play_hit_sound()
-	
-	# Spawn blood splash effect
-	_spawn_blood_splash(knockback_direction)
-	
-	# No knockback applied - player movement never interrupted
-	
 	# Apply combo score before taking damage if combo is active
 	apply_combo_score()
 	
 	# Reset combo streak when taking damage
 	reset_combo_streak()
 	
-	health = max(health - amount, 0)
-	if ui_script:
-		ui_script.update_health(health, MAX_HEALTH)
+	# Use health component to handle damage
+	var was_depleted = health_component.take_damage(amount, knockback_direction, true)
 	
-	if health <= 0:
-		_die()
+	# Health component handles UI updates and effects via signals
 
 func _play_hit_sound():
-	# Create audio player for hit sound
-	var audio_player = AudioStreamPlayer.new()
-	audio_player.stream = HIT_SOUND
-	audio_player.volume_db = 0.0  # Normal volume
-	
-	# Add to scene and play
-	add_child(audio_player)
-	audio_player.play()
-	
-	# Remove after sound finishes
-	audio_player.finished.connect(audio_player.queue_free)
+	# Use AudioUtils pool for hit sound
+	_AudioUtilsScript.play_positioned_sound(HIT_SOUND, global_position, 0.9, 1.1)
 
 func heal(amount: int):
-	health = min(health + amount, MAX_HEALTH)
-	if ui_script:
-		ui_script.update_health(health, MAX_HEALTH)
+	# Use health component to handle healing
+	health_component.heal(amount)
 
-func _create_muzzle_flash(flash_position: Vector2):
-	# Create simple muzzle flash effect
-	var flash = Sprite2D.new()
-	add_child(flash)
-	flash.global_position = flash_position
-	flash.scale = Vector2(0.5, 0.5)
+func _create_muzzle_flash(flash_position: Vector2, shoot_direction: Vector2):
+		
+	# Get the main scene to add muzzle flash to world space
+	var scene: Node = Engine.get_main_loop().current_scene
+	if scene == null:
+		return
 	
-	# Create a simple white/yellow flash texture
-	var texture = ImageTexture.new()
-	var image = Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	image.fill(Color.TRANSPARENT)
+	# Create muzzle flash container
+	var flash_root := Node2D.new()
+	flash_root.position = flash_position
+	flash_root.rotation = shoot_direction.angle()
+	scene.add_child(flash_root)
 	
-	# Draw a bright center
-	var center = Vector2(16, 16)
-	for x in range(32):
-		for y in range(32):
-			var pos = Vector2(x, y)
-			var dist = pos.distance_to(center)
-			if dist < 8:
-				var brightness = 1.0 - (dist / 8.0)
-				image.set_pixel(x, y, Color(1.0, 1.0, 0.8 * brightness, brightness))
+	# Create multiple flash particles for burst effect
+	var flash_count = 4
+	for i in range(flash_count):
+		var flash := Sprite2D.new()
+		# Use procedural texture directly (no external file dependency)
+		flash.texture = get_random_muzzle_flash_texture()
+		
+		# Random positioning within small radius
+		var spread_angle = randf_range(-0.3, 0.3)  # Small spread in radians
+		var distance = randf_range(2.0, 8.0)
+		flash.position = Vector2.RIGHT.rotated(spread_angle) * distance
+		
+		# Random size variation (reduced)
+		var scale = randf_range(12.0, 18.0)  # Smaller scale
+		flash.scale = Vector2(scale, scale)
+		
+		# Bright yellow-orange color with maximum opacity
+		flash.modulate = Color(1.0, randf_range(0.6, 0.9), 0.0, 1.0)  # Maximum opacity
+		
+		flash_root.add_child(flash)
+		
+		# Animate flash: quick fade out and scale down
+		var tween := flash_root.create_tween()
+		tween.set_parallel(true)
+		tween.tween_property(flash, "modulate:a", 0.0, 0.1)  # Much shorter duration
+		tween.tween_property(flash, "scale", Vector2.ZERO, 0.1)  # Much shorter duration
+		tween.finished.connect(flash.queue_free)
 	
-	texture.set_image(image)
-	flash.texture = texture
-	
-	# Fade out quickly
-	var tween = create_tween()
-	tween.set_ease(Tween.EASE_OUT)
-	tween.tween_property(flash, "modulate:a", 0.0, 0.1)
-	tween.tween_callback(flash.queue_free)
+	# Remove the container after all flashes are done
+	var cleanup_tween := flash_root.create_tween()
+	cleanup_tween.tween_callback(flash_root.queue_free).set_delay(0.15)  # Shorter cleanup delay
+
+
+static func get_random_muzzle_flash_texture() -> ImageTexture:
+	if muzzle_flash_pool.is_empty():
+		_initialize_muzzle_flash_pool()
+	return muzzle_flash_pool[randi() % muzzle_flash_pool.size()]
 
 func _play_gunshot_sound():
-	# Create audio player for gunshot sound with lower volume and random pitch
-	var audio_player = AudioStreamPlayer2D.new()
-	var gunshot_sound = load(GUNSHOT_SOUND_PATH)
-	if gunshot_sound:
-		audio_player.stream = gunshot_sound
-		audio_player.volume_db = 0.0  # Full volume for gunshot sounds
-		audio_player.position = global_position
-		audio_player.pitch_scale = randf_range(0.8, 1.2)  # Random pitch variation
-		
-		# Add to scene and play
-		get_parent().add_child(audio_player)
-		audio_player.play()
-		
-		# Remove after sound finishes
-		audio_player.finished.connect(audio_player.queue_free)
+	# Use AudioUtils pool for gunshot sound with lower volume and random pitch
+	_AudioUtilsScript.play_positioned_sound(GUNSHOT_SOUND, global_position, 0.8, 1.2)
 
 func _die():
 	# Player death logic - for now just respawn
-	health = MAX_HEALTH
-	if ui_script:
-		ui_script.update_health(health, MAX_HEALTH)
+	health_component.reset_health()
 	position = Vector2.ZERO  # Reset position
 
 func _draw():
