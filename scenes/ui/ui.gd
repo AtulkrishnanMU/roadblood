@@ -23,10 +23,19 @@ func _ready():
 	if health_bar:
 		health_bar.show_percentage = false
 		health_label = health_bar.get_node_or_null("HealthLabel")
+		# Apply default font to health label
+		if health_label:
+			FontConfig.apply_ui_font(health_label)
 	
 	# Find other labels
 	kill_counter_label = get_node_or_null("HealthBar/KillCounterLabel")
 	score_label = get_node_or_null("ScoreLabel")
+	
+	# Apply default font to UI labels
+	if kill_counter_label:
+		FontConfig.apply_ui_font(kill_counter_label)
+	if score_label:
+		FontConfig.apply_ui_font(score_label)
 	
 	# Initialize displays
 	update_kill_counter(0)
@@ -103,7 +112,7 @@ func _update_outline_color(color: Color):
 func update_kill_counter(kills: int):
 	total_kills = kills
 	if kill_counter_label:
-		kill_counter_label.text = "KILLS: " + str(total_kills)
+		kill_counter_label.text = "💀" + str(total_kills)
 	
 	# Check for multi-bullet unlock
 	var player = get_tree().get_first_node_in_group("player")

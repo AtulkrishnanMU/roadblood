@@ -6,6 +6,12 @@ var health: int
 var max_health: int
 var health_bar: ProgressBar
 
+# Floating animation variables
+var time = 0.0
+var base_y = 0.0
+const FLOAT_SPEED = 80.0  # Much faster float speed
+const FLOAT_HEIGHT = 20.0  # Slightly larger float height
+
 func _ready():
 	add_to_group("food")
 	max_health = 200
@@ -16,6 +22,19 @@ func _ready():
 		health_bar.max_value = max_health
 		health_bar.value = health
 		_setup_health_bar_style()
+	
+	# Store initial Y position for floating animation
+	base_y = position.y
+
+func _physics_process(delta):
+	time += delta
+	
+	# Floating animation with ease in/out using cubic interpolation
+	var float_phase = time * FLOAT_SPEED * 0.1
+	# Use ease in/out with cubic interpolation for smooth acceleration/deceleration
+	var ease_factor = 0.5 * (1.0 + cos(float_phase * TAU))  # Cosine gives natural ease in/out
+	var float_offset = ease_factor * FLOAT_HEIGHT
+	position.y = base_y - float_offset  # Negative to float up when ease_factor is high
 
 func _setup_health_bar_style():
 	# Style the health bar

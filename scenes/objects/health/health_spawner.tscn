@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://bvxw8y7q2healthspawner"]
+
+[ext_resource type="Script" path="res://scenes/utility-scripts/utils/health_spawner.gd" id="health_spawner_script"]
+
+[node name="HealthSpawner" type="Node2D"]
+script = ExtResource("health_spawner_script")

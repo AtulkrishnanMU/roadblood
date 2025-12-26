@@ -14,6 +14,12 @@ func _ready():
 	if ui:
 		combo_text_label = ui.get_node_or_null("ComboTextLabel")
 		combo_total_label = ui.get_node_or_null("ComboTotalLabel")
+		
+		# Apply default font to combo labels
+		if combo_text_label:
+			FontConfig.apply_ui_font(combo_text_label)
+		if combo_total_label:
+			FontConfig.apply_ui_font(combo_total_label)
 	
 	# Connect player signals
 	if player and player.has_signal("combo_streak_changed"):

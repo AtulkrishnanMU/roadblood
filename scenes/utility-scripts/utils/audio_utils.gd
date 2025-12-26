@@ -74,7 +74,20 @@ static func play_death_sound(death_sounds: Array[AudioStream], position: Vector2
 	# Randomly select one death sound from the array
 	var sound_to_play = death_sounds[randi() % death_sounds.size()]
 	
-	play_positioned_sound(sound_to_play, position, 1.4, 2.0)
+	# Create non-positional audio player for consistent full volume
+	var scene: Node = Engine.get_main_loop().current_scene
+	if scene == null:
+		return
+	
+	var audio := AudioStreamPlayer.new()  # Non-positional for consistent volume
+	audio.stream = sound_to_play
+	audio.volume_db = -1.0  # Reduced volume for death sounds
+	audio.pitch_scale = randf_range(1.4, 2.0)  # Keep the high pitch variation
+	scene.add_child(audio)
+	audio.play()
+	
+	# Remove after sound finishes
+	audio.finished.connect(audio.queue_free)
 
 # Plays hurt sound at position
 static func play_hurt_sound(hurt_sound: AudioStream, position: Vector2) -> void:

@@ -2,13 +2,13 @@ class_name FontConfig
 extends RefCounted
 
 # Global font configuration for Roadblood
-const DEFAULT_FONT_PATH := "res://fonts/PixelOperator8.ttf"
-const DEFAULT_FONT_SIZE := 16
-const DEFAULT_UI_FONT_SIZE := 14
+const DEFAULT_FONT_PATH := "res://fonts/tropical-luge.ttf"
+const DEFAULT_FONT_SIZE := 32
+const DEFAULT_UI_FONT_SIZE := 32
 const DEFAULT_DIALOGUE_FONT_SIZE := 16
 const DEFAULT_TITLE_FONT_SIZE := 32
-const DEFAULT_POPUP_FONT_SIZE := 20
-const DEFAULT_OUTLINE_SIZE := 2
+const DEFAULT_POPUP_FONT_SIZE := 32
+const DEFAULT_OUTLINE_SIZE := 0
 
 # Cached font resource
 static var _default_font: FontFile = null
@@ -81,6 +81,15 @@ static func apply_popup_font(label: Label) -> void:
 	if font and label:
 		label.add_theme_font_override("font", font)
 		label.add_theme_font_size_override("font_size", DEFAULT_POPUP_FONT_SIZE)
+		# Explicitly remove outlines
+		label.add_theme_constant_override("outline_size", 0)
+
+static func apply_popup_font_with_size(label: Label, font_size: int) -> void:
+	# Apply font without outlines for popup text with custom size
+	var font := get_default_font()
+	if font and label:
+		label.add_theme_font_override("font", font)
+		label.add_theme_font_size_override("font_size", font_size)
 		# Explicitly remove outlines
 		label.add_theme_constant_override("outline_size", 0)
 

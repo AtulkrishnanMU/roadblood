@@ -61,7 +61,7 @@ offset_left = 943.0
 offset_top = 19.0
 offset_right = 1067.0
 offset_bottom = 43.0
-text = "KILLS: 0"
+text = "💀0"
 horizontal_alignment = 2
 
 [node name="ScoreLabel" type="Label" parent="."]

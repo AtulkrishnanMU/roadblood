@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://c5chywouv085q"]
+[gd_scene load_steps=10 format=3 uid="uid://c5chywouv085q"]
 
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2n3rk" path="res://scenes/characters/player/player.tscn" id="1_eyte8"]
 [ext_resource type="PackedScene" uid="uid://b3dc8kuyva8ve" path="res://scenes/ui/ui.tscn" id="3_ui"]
@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2food" path="res://scenes/objects/food/food.tscn" id="6_eokde"]
 [ext_resource type="Script" uid="uid://dl7am6qsh2ul0" path="res://scenes/levels/level.gd" id="6_level_script"]
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2room" path="res://scenes/objects/room/room.tscn" id="7_room"]
+[ext_resource type="PackedScene" uid="uid://bvxw8y7q2healthspawner" path="res://scenes/objects/health/health_spawner.tscn" id="8_health_spawner"]
+[ext_resource type="PackedScene" uid="uid://bvxw8y7q2musicmanager" path="res://scenes/utility-scripts/utils/music_manager.tscn" id="9_music_manager"]
 
 [node name="LevelTemplate" type="Node2D"]
 script = ExtResource("6_level_script")
@@ -18,8 +20,12 @@ scale = Vector2(2.6203313, 2.2300773)
 [node name="TimeUtils" type="Node" parent="."]
 script = ExtResource("5_time_utils")
 
+[node name="MusicManager" parent="." instance=ExtResource("9_music_manager")]
+
 [node name="EnemySpawner" type="Node2D" parent="."]
 script = ExtResource("4_spawner")
+
+[node name="HealthSpawner" parent="." instance=ExtResource("8_health_spawner")]
 
 [node name="Food" parent="." instance=ExtResource("6_eokde")]
 position = Vector2(568, 445)

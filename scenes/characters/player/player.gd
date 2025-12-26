@@ -44,6 +44,8 @@ const COMBO_DURATION = 1.0  # Seconds before combo expires
 var combo_streak: int = 0
 var combo_active: bool = false
 var combo_timer: Timer = null
+var current_combo_popup: Node2D = null  # Track persistent combo popup
+var combo_popup_label: Label = null   # Track the label for text updates
 
 var time = 0.0
 var shoot_angle = 0.0
@@ -82,6 +84,40 @@ func _setup_combo_timer():
 	combo_timer.connect("timeout",Callable(self,"_on_combo_timer_timeout"))
 	add_child(combo_timer)
 
+func _create_or_update_combo_popup():
+	var scene := get_tree().current_scene
+	if scene == null:
+		return
+	
+	if current_combo_popup == null:
+		# Create new persistent popup
+		current_combo_popup = Node2D.new()
+		current_combo_popup.position = (global_position + Vector2(0, -100)).round()
+		scene.add_child(current_combo_popup)
+		
+		combo_popup_label = Label.new()
+		combo_popup_label.text = "x" + str(combo_streak)
+		combo_popup_label.modulate = Color.ORANGE
+		FontConfig.apply_popup_font_with_size(combo_popup_label, 100)
+		
+		current_combo_popup.add_child(combo_popup_label)
+	else:
+		# Update existing popup text
+		combo_popup_label.text = "x" + str(combo_streak)
+		# Update position to follow player
+		current_combo_popup.position = (global_position + Vector2(0, -100)).round()
+
+func _fade_out_combo_popup():
+	if current_combo_popup and combo_popup_label:
+		var tween = get_tree().create_tween()
+		tween.tween_property(combo_popup_label, "modulate:a", 0.0, 0.5)
+		tween.tween_callback(func(): 
+			if current_combo_popup:
+				current_combo_popup.queue_free()
+				current_combo_popup = null
+				combo_popup_label = null
+		)
+
 func _on_combo_timer_timeout():
 	# Apply score before resetting the combo
 	apply_combo_score()
@@ -97,8 +133,8 @@ func increment_combo_streak():
 		combo_timer.stop()
 		combo_timer.start()
 	
-	# Show combo popup immediately for instant feedback
-	PopupUtils.spawn_combo_popup(self, "x" + str(combo_streak))
+	# Update persistent combo popup
+	_create_or_update_combo_popup()
 	
 	emit_signal("combo_streak_changed", combo_streak)
 
@@ -109,6 +145,9 @@ func reset_combo_streak():
 	# Stop combo timer
 	if combo_timer:
 		combo_timer.stop()
+	
+	# Fade out combo popup
+	_fade_out_combo_popup()
 	
 	emit_signal("combo_streak_changed", 0)
 	print("Combo streak reset")
@@ -221,6 +260,10 @@ func _physics_process(delta):
 	
 	# Update base_y to follow movement
 	base_y = position.y
+	
+	# Update combo popup position to follow player
+	if current_combo_popup:
+		current_combo_popup.position = (global_position + Vector2(0, -100)).round()
 	
 	# Update screen shake
 	if screen_shake_time > 0:
@@ -374,6 +417,9 @@ func take_damage(amount: int, knockback_direction: Vector2 = Vector2.ZERO):
 	# Apply combo score before taking damage if combo is active
 	apply_combo_score()
 	
+	# Reset combo streak when taking damage
+	reset_combo_streak()
+	
 	health = max(health - amount, 0)
 	if ui_script:
 		ui_script.update_health(health, MAX_HEALTH)
@@ -431,13 +477,14 @@ func _create_muzzle_flash(flash_position: Vector2):
 	tween.tween_callback(flash.queue_free)
 
 func _play_gunshot_sound():
-	# Create audio player for gunshot sound
+	# Create audio player for gunshot sound with lower volume and random pitch
 	var audio_player = AudioStreamPlayer2D.new()
 	var gunshot_sound = load(GUNSHOT_SOUND_PATH)
 	if gunshot_sound:
 		audio_player.stream = gunshot_sound
-		audio_player.volume_db = -5.0  # Slightly quieter
+		audio_player.volume_db = 0.0  # Full volume for gunshot sounds
 		audio_player.position = global_position
+		audio_player.pitch_scale = randf_range(0.8, 1.2)  # Random pitch variation
 		
 		# Add to scene and play
 		get_parent().add_child(audio_player)

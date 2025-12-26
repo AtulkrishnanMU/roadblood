@@ -18,6 +18,9 @@ var targets_food = false  # false = targets player, true = targets food
 const MIN_PITCH = 1.5
 const MAX_PITCH = 3.0
 
+# Eating sound constants
+const EATING_SOUND = preload("res://sounds/eating.mp3")
+
 # Sound arrays
 var hurt_sounds: Array[AudioStream] = [
 	preload("res://sounds/enemy_hurt/hurt.mp3"),
@@ -59,6 +62,9 @@ var current_food_target: Node
 var continuous_attack_timer = 0.0
 var CONTINUOUS_ATTACK_INTERVAL = 2.0  # Attack every 2 seconds while in contact
 
+# Eating sound variables
+var eating_sound_player: AudioStreamPlayer
+
 func _ready():
 	add_to_group("enemies")
 	# Find the player reference
@@ -87,6 +93,9 @@ func _start_continuous_food_attack(food_object):
 	current_food_target = food_object
 	continuous_attack_timer = 0.0
 	
+	# Start eating sound on loop
+	_start_eating_sound()
+	
 	# Deal immediate damage on first contact
 	var knockback_direction = (current_food_target.global_position - global_position).normalized()
 	current_food_target.take_damage(DAMAGE, knockback_direction)
@@ -94,6 +103,9 @@ func _start_continuous_food_attack(food_object):
 func _stop_continuous_food_attack():
 	is_attacking_food = false
 	current_food_target = null
+	
+	# Stop eating sound
+	_stop_eating_sound()
 
 func _update_continuous_food_attack(delta):
 	if is_attacking_food and current_food_target:
@@ -197,13 +209,15 @@ func _spawn_blood_splash(hit_direction: Vector2 = Vector2.ZERO):
 				blood_splash.set_dead_enemy(true)
 
 func _find_target():
-	# Temporarily disable food targeting to debug player movement issue
-	# Override in child classes or use this default logic
-	if false:  # targets_food - temporarily disabled
+	# Check if this enemy targets food or player
+	if targets_food:
 		# Find nearest food
 		var food_objects = get_tree().get_nodes_in_group("food")
 		if food_objects.size() > 0:
 			current_target = _get_nearest_node(food_objects)
+		else:
+			# If no food available, fall back to player
+			current_target = player
 	else:
 		# Target player
 		current_target = player
@@ -275,6 +289,10 @@ func _attack_food(food_object):
 func _attack_target():
 	# Only attack if cooldown is ready
 	if attack_timer <= 0:
+		# Prevent food-targeting enemies from attacking the player
+		if targets_food and current_target == player:
+			return  # Don't attack the player if we target food
+		
 		# Calculate knockback direction (from enemy to target)
 		var knockback_direction = (current_target.global_position - global_position).normalized()
 		
@@ -345,3 +363,26 @@ func _start_death_animation():
 	
 	# Remove enemy immediately after blood burst
 	queue_free()
+
+func _start_eating_sound():
+	# Create non-positional audio player for eating sound
+	if eating_sound_player == null:
+		eating_sound_player = AudioStreamPlayer.new()
+		add_child(eating_sound_player)
+	
+	eating_sound_player.stream = EATING_SOUND
+	eating_sound_player.volume_db = -2.0  # Moderate volume for eating sound
+	eating_sound_player.play()
+	
+	# Connect to loop the sound
+	if not eating_sound_player.finished.is_connected(_on_eating_sound_finished):
+		eating_sound_player.finished.connect(_on_eating_sound_finished)
+
+func _stop_eating_sound():
+	if eating_sound_player and eating_sound_player.playing:
+		eating_sound_player.stop()
+
+func _on_eating_sound_finished():
+	# Restart eating sound to create continuous loop
+	if is_attacking_food and eating_sound_player:
+		eating_sound_player.play()

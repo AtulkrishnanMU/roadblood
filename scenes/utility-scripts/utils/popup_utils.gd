@@ -5,7 +5,7 @@ extends RefCounted
 const POPUP_FONT_SIZE = 30
 
 # Clean floating popup method (similar to cash popup)
-static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = 20, height: float = 0.0) -> void:
+static func spawn_floating_popup(character: Node2D, text: String, color: Color, offset: Vector2 = Vector2(0, -20), font_size: int = FontConfig.DEFAULT_POPUP_FONT_SIZE, height: float = 0.0) -> void:
 	var scene := character.get_tree().current_scene
 	if scene == null:
 		return
@@ -19,11 +19,9 @@ static func spawn_floating_popup(character: Node2D, text: String, color: Color, 
 	var label := Label.new()
 	label.text = text
 	label.modulate = color
-	# Apply popup font (no outlines)
-	FontConfig.apply_popup_font(label)
-	# Override font size if it's not the default
-	if font_size != 20:
-		label.add_theme_font_size_override("font_size", font_size)
+	# Apply popup font (no outlines) with custom size
+	FontConfig.apply_popup_font_with_size(label, font_size)
+	print("Popup font size set to: ", font_size)
 
 	popup_root.add_child(label)
 
@@ -46,7 +44,7 @@ static func spawn_floating_popup(character: Node2D, text: String, color: Color, 
 
 # Score popup specific function
 static func spawn_score_popup(character: Node2D, score: int) -> void:
-	spawn_floating_popup(character, "+" + str(score), Color.YELLOW, Vector2(0, -50), POPUP_FONT_SIZE)
+	spawn_floating_popup(character, "+" + str(score), Color.YELLOW, Vector2(0, -50), 64)
 
 # Health popup specific function
 static func spawn_health_popup(character: Node2D, health: int) -> void:
@@ -54,7 +52,7 @@ static func spawn_health_popup(character: Node2D, health: int) -> void:
 
 # Combo popup specific function
 static func spawn_combo_popup(character: Node2D, combo_text: String) -> void:
-	spawn_floating_popup(character, combo_text, Color.ORANGE, Vector2(0, -70), POPUP_FONT_SIZE)
+	spawn_floating_popup(character, combo_text, Color.ORANGE, Vector2(0, -100), 52)
 
 # Milestone popup specific function
 static func spawn_milestone_popup(character: Node2D, score: int) -> void:
