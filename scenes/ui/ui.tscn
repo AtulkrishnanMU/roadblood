@@ -71,3 +71,19 @@ offset_top = 50.0
 offset_right = 250.0
 offset_bottom = 74.0
 text = "SCORE: 0"
+
+[node name="WaveTimerLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 518.0
+offset_top = 68.0
+offset_right = 564.0
+offset_bottom = 91.0
+text = "00000"
+
+[node name="WaveLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 512.0
+offset_top = 46.0
+offset_right = 574.0
+offset_bottom = 69.0
+text = "WAVE N"

@@ -99,7 +99,7 @@ static func get_nearest_enemy_cached(position: Vector2, tree: SceneTree, max_dis
 		
 		# Invalidate if position changed significantly or cache is old
 		var position_changed = _last_player_position.distance_to(position) > 100.0
-		var cache_invalid = frame_diff > 10 or position_changed
+		var cache_invalid = frame_diff > 120 or position_changed
 		
 		if not cache_invalid and is_instance_valid(cache_data.enemy):
 			# Verify enemy is still within reasonable distance

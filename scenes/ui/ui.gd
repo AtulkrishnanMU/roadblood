@@ -20,6 +20,12 @@ var score_label: Label
 var total_kills: int = 0
 var total_score: int = 0
 
+# Wave system UI elements
+var wave_label: Label
+var wave_timer_label: Label
+var current_wave: int = 0
+var wave_time_remaining: float = 0.0
+
 func _ready():
 	# Initialize UI style cache
 	UIStyleCache.initialize_cache()
@@ -46,6 +52,23 @@ func _ready():
 	kill_counter_label = get_node_or_null("HealthBar/KillCounterLabel")
 	score_label = get_node_or_null("ScoreLabel")
 	
+	# Find wave UI elements from the scene
+	wave_label = get_node_or_null("WaveLabel")
+	wave_timer_label = get_node_or_null("WaveTimerLabel")
+	
+	# Apply font config and styling to wave labels
+	if wave_label:
+		FontConfig.apply_ui_font(wave_label)
+		wave_label.add_theme_font_size_override("font_size", 32)
+		wave_label.add_theme_color_override("font_color", Color.YELLOW)
+		wave_label.visible = false  # Initially hidden
+	
+	if wave_timer_label:
+		FontConfig.apply_ui_font(wave_timer_label)
+		wave_timer_label.add_theme_font_size_override("font_size", 24)
+		wave_timer_label.add_theme_color_override("font_color", Color.WHITE)
+		wave_timer_label.visible = false  # Initially hidden
+	
 	# Apply font config first, then cached styles to UI labels
 	if kill_counter_label:
 		FontConfig.apply_ui_font(kill_counter_label)
@@ -60,6 +83,44 @@ func _ready():
 	
 	# Add to ui group for enemy spawner communication
 	add_to_group("ui")
+
+func _process(delta):
+	# Update wave timer if active
+	if wave_time_remaining > 0.0:
+		wave_time_remaining -= delta
+		if wave_time_remaining < 0.0:
+			wave_time_remaining = 0.0
+		_update_wave_timer_display()
+
+func _update_wave_timer_display():
+	if wave_timer_label:
+		var minutes = int(wave_time_remaining) / 60
+		var seconds = int(wave_time_remaining) % 60
+		var milliseconds = int((wave_time_remaining - int(wave_time_remaining)) * 100)
+		wave_timer_label.text = "%02d:%02d.%02d" % [minutes, seconds, milliseconds]
+
+# Wave system functions
+func show_wave_start(wave_number: int, duration: float):
+	current_wave = wave_number
+	wave_time_remaining = duration
+	
+	if wave_label:
+		wave_label.text = "WAVE %d" % wave_number
+		wave_label.visible = true
+	
+	if wave_timer_label:
+		wave_timer_label.visible = true
+	
+	_update_wave_timer_display()
+
+func hide_wave_ui():
+	if wave_label:
+		wave_label.visible = false
+	if wave_timer_label:
+		wave_timer_label.visible = false
+	
+	current_wave = 0
+	wave_time_remaining = 0.0
 
 func update_health(current: int, max_health: int):
 	var health_bar = get_node_or_null("HealthBar")

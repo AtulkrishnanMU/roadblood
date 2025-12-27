@@ -3,29 +3,31 @@ extends Node2D
 const BASIC_RAT_SCENE = preload("res://scenes/characters/enemy/basic_rat.tscn")
 const BIG_RAT_SCENE = preload("res://scenes/characters/enemy/big_rat.tscn")
 const CIRCULAR_WAVE_SCENE = preload("res://scenes/effects/circular_wave.tscn")
-const BASE_SPAWN_INTERVAL = 3.0  # base seconds between spawns
 const SPAWN_RADIUS = 1200.0  # distance from player to spawn enemies (increased from 800)
+const MIN_SPAWN_DISTANCE = 400.0  # minimum distance from player for wave spawning
+const MAX_SPAWN_ATTEMPTS = 10  # maximum attempts to find a valid spawn position
 const ROOM_WIDTH = 1200.0  # room width in pixels
 const ROOM_HEIGHT = 800.0  # room height in pixels
 const ROOM_CENTER_X = 576.0  # room center X position
 const ROOM_CENTER_Y = 320.0  # room center Y position (corrected from 400)
 const ROOM_SCALE_X = 2.62  # room scale X
 const ROOM_SCALE_Y = 2.23  # room scale Y
-const FADE_IN_DURATION = 1.0  # duration for fade-in effect
-const MIN_SPAWN_INTERVAL = 0.5  # minimum spawn interval (fastest possible)
-const MAX_SPEED_INCREASES = 8  # maximum number of speed increases (caps at 8*5=40 kills)
-const KILLS_PER_SPEED_UP = 5  # kills needed to increase spawn rate
-const KILLS_PER_EXTRA_ENEMY = 5  # kills needed to spawn extra enemy
-const KILLS_PER_BIG_RAT = 10  # kills needed to start spawning big rats
-const WAVE_TRIGGER_KILLS = 50  # kills needed to start wave spawning
-const WAVE_INTERVAL = 10.0  # seconds between waves after trigger
+const FADE_IN_DURATION = 0.3  # duration for fade-in effect (reduced from 1.0 for faster reaction)
 
-var spawn_timer = 0.0
+signal enemy_killed
+signal enemy_spawned(enemy: Node)  # Immediate notification when enemy spawns
+
 var player: CharacterBody2D
 var kill_count = 0
-var current_spawn_interval = BASE_SPAWN_INTERVAL
-var wave_timer = 0.0
-var waves_enabled = false
+
+# New wave system variables
+var current_spawn_points: Array[Vector2] = []
+var current_enemy_pool: Array[PackedScene] = []
+var current_spawn_rate: float = 1.0
+var current_max_enemies: int = 20
+var current_enemies_per_spawn: int = 1  # New: number of enemies per spawn event
+var wave_controlled: bool = false  # Flag to indicate if BaseLevel is controlling spawning
+var enemies_alive_count: int = 0
 
 func _ready():
 	# Try to find the player initially
@@ -40,58 +42,84 @@ func _process(delta):
 		player = get_tree().get_first_node_in_group("player")
 		if player:
 			pass  # Player found
-	
-	spawn_timer += delta
-	
-	# Handle wave spawning if enabled
-	if waves_enabled:
-		wave_timer += delta
-		if wave_timer >= WAVE_INTERVAL:
-			call_deferred("spawn_circular_wave")  # Use call_deferred to avoid physics error
-			wave_timer = 0.0
-	
-	if spawn_timer >= current_spawn_interval:
-		spawn_enemies()
-		spawn_timer = 0.0
 
-func spawn_enemies():
-	if not player:
-		return
-	
-	# Calculate how many enemies to spawn based on kill count
-	var enemies_to_spawn = 1  # Always spawn at least 1
-	
-	if kill_count >= 5:
-		# Every 5 kills after 5, add one more enemy (max 3 total)
-		var kill_thresholds = floor((kill_count - 5) / float(KILLS_PER_EXTRA_ENEMY)) + 1
-		enemies_to_spawn = min(kill_thresholds + 1, 3)  # +1 for the base enemy, max 3
-	
-	
-	# Spawn the calculated number of enemies
-	for i in range(enemies_to_spawn):
-		spawn_single_enemy()
+# New methods for BaseLevel integration
+func set_spawn_points(points: Array[Vector2]):
+	current_spawn_points = points
 
-func spawn_single_enemy():
+func set_enemy_pool(enemies: Array[PackedScene]):
+	current_enemy_pool = enemies
+
+func set_spawn_rate(rate: float):
+	current_spawn_rate = rate
+	wave_controlled = true  # Mark as wave-controlled
+
+func set_max_enemies(max_enemies: int):
+	current_max_enemies = max_enemies
+
+func set_spawn_range(spawn_range: Array[int]):
+	# This is handled by set_enemies_per_spawn which is called dynamically
+	pass
+
+func set_enemies_per_spawn(count: int):
+	current_enemies_per_spawn = count
+
+func spawn_enemy():
+	# Spawn multiple enemies based on current_enemies_per_spawn
+	var enemies_spawned = 0
 	
-	# Determine enemy type based on kill count
-	var enemy_scene: PackedScene
-	if kill_count >= KILLS_PER_BIG_RAT and randf() < 0.3:  # 30% chance for big rat after threshold
-		enemy_scene = BIG_RAT_SCENE
+	for i in range(current_enemies_per_spawn):
+		# Check if we've reached the max enemy limit
+		if enemies_alive_count >= current_max_enemies:
+			break  # Cannot spawn more, max reached
+		
+		# Check if enemy pool is available
+		if current_enemy_pool.is_empty():
+			break  # No enemies to spawn
+		
+		# Get random enemy from current pool
+		var enemy_scene = current_enemy_pool[randi() % current_enemy_pool.size()]
+		
+		# Get spawn position
+		var spawn_position = _get_spawn_position()
+		
+		# Spawn the enemy
+		var enemy = enemy_scene.instantiate()
+		get_parent().add_child(enemy)
+		enemy.global_position = spawn_position
+		
+		# Track this enemy
+		enemies_alive_count += 1
+		enemies_spawned += 1
+		
+		# Connect to enemy death signal
+		if enemy.has_signal("tree_exiting"):
+			enemy.tree_exiting.connect(_on_enemy_exited)
+		
+		# Add fade-in effect
+		_fade_in_enemy(enemy)
+		
+		# CRITICAL: Emit signal immediately after spawn for zero reaction time
+		emit_signal("enemy_spawned", enemy)
+	
+	return enemies_spawned > 0  # Return true if at least one enemy was spawned
+
+func _on_enemy_exited():
+	enemies_alive_count -= 1
+	emit_signal("enemy_killed")
+
+func increment_kill_count():
+	kill_count += 1
+	
+	# Emit signal for BaseLevel to track
+	emit_signal("enemy_killed")
+	
+	# Update kill counter in UI
+	var ui = get_tree().get_first_node_in_group("ui")
+	if ui:
+		ui.update_kill_counter(kill_count)
 	else:
-		enemy_scene = BASIC_RAT_SCENE
-	
-	# Get random position on room edge
-	var spawn_position = _get_random_position_on_room_edge()
-	
-	
-	# Spawn the enemy
-	var enemy = enemy_scene.instantiate()
-	get_parent().add_child(enemy)
-	enemy.global_position = spawn_position
-	
-	
-	# Add fade-in effect
-	_fade_in_enemy(enemy)
+		pass  # UI not found
 
 func _get_random_position_on_room_edge() -> Vector2:
 	# Calculate actual room boundaries with scale
@@ -141,33 +169,9 @@ func _get_random_position_on_room_edge() -> Vector2:
 	
 	return spawn_position
 
-func increment_kill_count():
-	kill_count += 1
-	
-	# Update kill counter in UI
-	var ui = get_tree().get_first_node_in_group("ui")
-	if ui:
-		ui.update_kill_counter(kill_count)
-	else:
-		pass  # UI not found
-	
-	# Check if we should enable wave spawning
-	if kill_count >= WAVE_TRIGGER_KILLS and not waves_enabled:
-		waves_enabled = true
-		# Spawn first wave immediately using call_deferred to avoid physics error
-		call_deferred("spawn_circular_wave")
-		wave_timer = 0.0  # Reset timer for next wave
-	
-	# Calculate new spawn interval based on kills (capped at MAX_SPEED_INCREASES)
-	var speed_increases = min(kill_count / float(KILLS_PER_SPEED_UP), MAX_SPEED_INCREASES)
-	var reduction = speed_increases * 0.3  # Reduce interval by 0.3s per speed increase
-	current_spawn_interval = max(MIN_SPAWN_INTERVAL, BASE_SPAWN_INTERVAL - reduction)
-	
-
 func spawn_circular_wave():
 	if not player:
 		return
-	
 	
 	# Spawn the circular wave
 	var wave = CIRCULAR_WAVE_SCENE.instantiate()
@@ -183,3 +187,32 @@ func _fade_in_enemy(enemy: CharacterBody2D):
 	fade_tween.set_ease(Tween.EASE_IN_OUT)
 	fade_tween.set_trans(Tween.TRANS_SINE)
 	fade_tween.tween_property(enemy, "modulate:a", 1.0, FADE_IN_DURATION)
+
+func _get_spawn_position() -> Vector2:
+	# Use configured spawn points if available, but ensure minimum distance from player
+	if not current_spawn_points.is_empty():
+		return _get_valid_spawn_point_from_list()
+	
+	# Fallback to original room edge spawning
+	return _get_random_position_on_room_edge()
+
+func _get_valid_spawn_point_from_list() -> Vector2:
+	# Try to find a spawn point that's far enough from the player
+	for attempt in range(MAX_SPAWN_ATTEMPTS):
+		var spawn_point = current_spawn_points[randi() % current_spawn_points.size()]
+		
+		if player and spawn_point.distance_to(player.global_position) >= MIN_SPAWN_DISTANCE:
+			return spawn_point
+	
+	# If no valid point found, return the farthest one
+	var farthest_point = current_spawn_points[0]
+	var max_distance = 0.0
+	
+	for point in current_spawn_points:
+		if player:
+			var distance = point.distance_to(player.global_position)
+			if distance > max_distance:
+				max_distance = distance
+				farthest_point = point
+	
+	return farthest_point

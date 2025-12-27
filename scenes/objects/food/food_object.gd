@@ -2,6 +2,8 @@ extends Node2D
 
 class_name FoodObject
 
+signal health_depleted
+
 # Import floating behavior and health component
 const FloatingBehavior = preload("res://scenes/utility-scripts/utils/floating_behavior.gd")
 const HealthComponent = preload("res://scenes/utility-scripts/utils/health_component.gd")
@@ -66,5 +68,8 @@ func take_damage(damage: int, knockback_direction: Vector2):
 	health_component.take_damage(damage, Vector2.ZERO, false)  # No blood for food
 	
 func _destroy_food():
+	# Emit signal before destroying
+	emit_signal("health_depleted")
+	
 	# Create some visual effect or sound if needed
 	queue_free()

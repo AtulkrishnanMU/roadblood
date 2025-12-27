@@ -3,10 +3,11 @@ extends "res://scenes/characters/enemy/base_enemy.gd"
 class_name BigRat
 
 func _ready():
-	super._ready()
+	# Set stats BEFORE calling super._ready() so health component uses correct values
 	targets_food = false  # Big rats target player instead of food
 	SPEED = 200.0  # Much slower speed (decreased from 400)
 	MAX_HEALTH = 20  # More health than basic_rat (10)
 	DAMAGE = 25  # More damage than basic_rat (15)
 	SCORE_VALUE = 200  # Big rats give more score than basic rats
-	# Health is now managed by HealthComponent in base_enemy.gd
+	
+	super._ready()  # Call after setting stats so health component uses MAX_HEALTH = 20

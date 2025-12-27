@@ -40,8 +40,14 @@ func get_popup_manager():
 var multi_bullet_enabled = false
 var current_gun_width = BARREL_WIDTH
 
+# Player stats
+var MAX_HEALTH = 100
+var SPEED = 300.0
+
+# Player signals
+signal damage_taken(amount: int)  # For intelligent spawn rate system
+
 # Health management
-const MAX_HEALTH = 200
 var health_component
 
 # Combo system constants
@@ -71,69 +77,41 @@ const TRIPLE_BULLET_FIRE_RATE = 0.4  # Seconds between triple bullet shots (2.5 
 var _nearest_enemy_cache: Node = null
 var _nearest_enemy_distance: float = INF
 var _enemy_cache_update_timer: float = 0.0
-const ENEMY_CACHE_UPDATE_INTERVAL = 0.25  # Update nearest enemy every 250ms (reduced from 100ms)
+const ENEMY_CACHE_UPDATE_INTERVAL = 0.1  # Update nearest enemy every 100ms (reduced from 250ms for faster reaction)
 var _ui_event_manager_cache: Node = null
 var _time_utils_cache: Node = null
 
-# Optimized muzzle flash texture pool with pre-defined patterns
-static var muzzle_flash_pool: Array[ImageTexture] = []
-static var pool_initialized = false
+# Single optimized muzzle flash texture for performance
+static var muzzle_flash_texture: ImageTexture = null
 
-# Pre-defined texture data for muzzle flashes (8x8 pixels = 64 elements each)
-static var _predefined_patterns: Array[PackedByteArray] = [
-	# Pattern 0: Perfect circle (64 elements)
-	PackedByteArray([0,0,0,0,0,0,0,0,0,0,255,255,255,0,0,0,0,255,255,255,255,255,0,0,0,255,255,255,255,255,0,0,0,255,255,255,255,255,0,0,0,255,255,255,255,255,0,0,0,255,255,255,0,0,0,0,0,0,0,0,0,0]),
-	# Pattern 1: Fuzzy circle (64 elements)
-	PackedByteArray([0,0,0,0,0,0,0,0,0,128,255,255,128,0,0,0,128,255,255,255,255,128,0,0,128,255,255,255,255,128,0,0,128,255,255,255,255,128,0,0,128,255,255,128,0,0,0,0,0,0,0,0,0,0]),
-	# Pattern 2: Ring effect (64 elements)
-	PackedByteArray([0,0,0,0,0,0,0,0,0,0,255,255,255,0,0,0,0,255,128,128,255,0,0,0,255,128,0,128,255,0,0,0,255,128,128,255,0,0,0,0,255,255,255,0,0,0,0,0,0,0,0,0,0]),
-	# Pattern 3: Gradient circle (64 elements)
-	PackedByteArray([0,0,0,0,0,0,0,0,0,100,200,200,100,0,0,0,100,200,255,200,100,0,0,100,200,255,255,200,100,0,0,100,200,200,100,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]),
-	# Pattern 4: Large soft circle (64 elements)
-	PackedByteArray([0,0,0,0,0,0,0,0,0,50,150,150,50,0,0,0,50,150,200,150,50,0,0,50,150,200,200,150,50,0,0,50,150,200,150,50,0,0,0,50,150,150,50,0,0,0,0,0,0,0,0,0,0]),
-	# Pattern 5: Multi-layered circles (64 elements)
-	PackedByteArray([0,0,0,0,0,0,0,0,0,0,255,0,255,0,0,0,0,255,0,0,0,255,0,0,255,0,255,0,255,0,0,0,255,0,0,0,255,0,0,0,255,0,255,0,0,0,0,0,0,0,0,0,0]),
-	# Pattern 6: Off-center circle (64 elements)
-	PackedByteArray([0,0,0,0,0,0,0,0,0,100,200,200,100,0,0,0,100,200,255,200,100,0,0,100,200,255,255,200,100,0,0,100,200,255,200,100,0,0,0,100,200,200,100,0,0,0,0,0,0,0,0,0,0]),
-	# Pattern 7: Dense blob (64 elements)
-	PackedByteArray([0,0,0,0,0,0,0,0,0,200,255,200,0,0,0,0,200,255,255,200,0,0,0,200,255,255,255,200,0,0,0,200,255,255,200,0,0,0,0,200,255,200,0,0,0,0,0,0,0,0,0,0,0])
-]
-
-static func _initialize_muzzle_flash_pool():
-	if pool_initialized:
+static func _initialize_muzzle_flash_texture():
+	if muzzle_flash_texture != null:
 		return
 	
-	# Create textures from pre-defined patterns (much faster than procedural generation)
-	for pattern_data in _predefined_patterns:
-		var texture = _create_texture_from_pattern(pattern_data)
-		muzzle_flash_pool.append(texture)
-	
-	pool_initialized = true
+	# Create single optimized texture
+	muzzle_flash_texture = _create_optimized_muzzle_flash()
 
-static func _create_texture_from_pattern(pattern_data: PackedByteArray) -> ImageTexture:
-	var image := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+static func _create_optimized_muzzle_flash() -> ImageTexture:
+	var image := Image.create(32, 32, false, Image.FORMAT_RGBA8)
 	image.fill(Color.TRANSPARENT)
 	
-	# Apply pattern data with yellow-orange colors
-	for i in range(64):  # 8x8 = 64 pixels
-		var x = i % 8
-		var y = i / 8
-		
-		# Bounds check to prevent out of bounds error
-		var alpha = 0.0
-		if i < pattern_data.size():
-			alpha = pattern_data[i] / 255.0
-		else:
-			# Fallback: create a simple circular pattern if data is missing
-			var center = Vector2(4, 4)
+	# Create a simple, efficient circular gradient pattern
+	var center = Vector2(16, 16)
+	var max_radius = 12.0
+	
+	for x in range(32):
+		for y in range(32):
 			var pos = Vector2(x, y)
-			var dist = pos.distance_to(center)
-			if dist <= 3.0:
-				alpha = 1.0 - (dist / 3.0)
-		
-		if alpha > 0:
-			var brightness = 0.7 + alpha * 0.3  # Brightness range 0.7-1.0
-			image.set_pixel(x, y, Color(brightness, brightness * 0.8, 0.0, alpha))
+			var distance = pos.distance_to(center)
+			
+			if distance <= max_radius:
+				# Create smooth gradient from center to edge
+				var alpha = 1.0 - (distance / max_radius)
+				alpha = alpha * alpha  # Quadratic falloff for smoother look
+				
+				if alpha > 0.1:  # Optimization: skip very transparent pixels
+					var brightness = 0.9 + alpha * 0.1
+					image.set_pixel(x, y, Color(brightness, brightness * 0.7, 0.0, alpha))
 	
 	var texture := ImageTexture.new()
 	texture.set_image(image)
@@ -155,8 +133,8 @@ func _ready():
 	# Setup combo timer
 	_setup_combo_timer()
 	
-	# Initialize muzzle flash texture pool
-	_initialize_muzzle_flash_pool()
+	# Initialize single muzzle flash texture
+	_initialize_muzzle_flash_texture()
 	
 	# Initialize cached references
 	_initialize_cached_references()
@@ -168,6 +146,11 @@ func _initialize_cached_references():
 	_nearest_enemy_cache = null
 	_nearest_enemy_distance = INF
 	_enemy_cache_update_timer = 0.0
+	
+	# CRITICAL: Connect to enemy spawn events for zero reaction time
+	var enemy_spawner = get_tree().get_first_node_in_group("enemy_spawner")
+	if enemy_spawner and enemy_spawner.has_signal("enemy_spawned"):
+		enemy_spawner.enemy_spawned.connect(_on_enemy_spawned)
 
 func _setup_health_component():
 	# Find the UI CanvasLayer
@@ -203,6 +186,9 @@ func _on_health_depleted():
 	_die()
 
 func _on_damage_taken(amount: int):
+	# Emit damage_taken signal for intelligent spawn rate system
+	damage_taken.emit(amount)
+	
 	# Play hit sound when damaged
 	_play_hit_sound()
 
@@ -352,27 +338,12 @@ func _physics_process(delta):
 		if camera:
 			camera.offset = Vector2.ZERO
 	
-	# Auto-aim towards nearest enemy with smooth rotation
+	# Auto-aim towards nearest enemy - immediate face
 	if camera:
-		var nearest_enemy = _find_nearest_enemy()
+		var nearest_enemy = _find_nearest_enemy(delta)
 		if nearest_enemy:
-			var target_angle = (nearest_enemy.global_position - global_position).angle()
-			
-			# Smoothly rotate towards target angle
-			var angle_diff = target_angle - shoot_angle
-			# Handle angle wrapping
-			if angle_diff > PI:
-				angle_diff -= 2 * PI
-			elif angle_diff < -PI:
-				angle_diff += 2 * PI
-			
-			# Rotate smoothly (adjust rotation speed as needed)
-			var rotation_speed = 5.0  # Radians per second
-			shoot_angle += angle_diff * rotation_speed * delta
-			
-			# Remove camera movement to prevent any interference
-			# var camera_offset = Vector2.from_angle(shoot_angle) * 100.0  # 100 pixels offset
-			# camera.global_position = lerp(camera.global_position, global_position + camera_offset, 0.1)
+			# IMMEDIATELY face the enemy - no smooth rotation
+			shoot_angle = (nearest_enemy.global_position - global_position).angle()
 			
 			# Auto-shoot at nearest enemy
 			_auto_shoot()
@@ -383,9 +354,9 @@ func _physics_process(delta):
 	# Draw shooting direction indicator (optional visual feedback)
 	queue_redraw()
 
-func _find_nearest_enemy():
-	# Use cached nearest enemy with periodic updates
-	_enemy_cache_update_timer += get_physics_process_delta_time()
+func _find_nearest_enemy(delta: float):
+	# Use cached nearest enemy with periodic updates (use delta parameter instead of expensive call)
+	_enemy_cache_update_timer += delta
 	
 	# Smart cache invalidation based on multiple factors
 	var should_update = false
@@ -407,12 +378,19 @@ func _find_nearest_enemy():
 			should_update = true
 	
 	if should_update:
-		_nearest_enemy_cache = _CacheManager.get_nearest_enemy_cached(global_position, get_tree())
-		if _nearest_enemy_cache:
-			_nearest_enemy_distance = global_position.distance_to(_nearest_enemy_cache.global_position)
+		var new_enemy = _CacheManager.get_nearest_enemy_cached(global_position, get_tree())
+		
+		# FALLBACK: If cache manager returns null but we have a valid cached enemy, keep it
+		if new_enemy == null and _nearest_enemy_cache != null and is_instance_valid(_nearest_enemy_cache):
+			# Don't update cache, just reset timer
+			_enemy_cache_update_timer = 0.0
 		else:
-			_nearest_enemy_distance = INF
-		_enemy_cache_update_timer = 0.0
+			_nearest_enemy_cache = new_enemy
+			if _nearest_enemy_cache:
+				_nearest_enemy_distance = global_position.distance_to(_nearest_enemy_cache.global_position)
+			else:
+				_nearest_enemy_distance = INF
+			_enemy_cache_update_timer = 0.0
 	
 	return _nearest_enemy_cache
 
@@ -442,6 +420,36 @@ func _auto_shoot():
 		# Auto-shoot continuously when not in slow-time
 		shoot_bullet()
 		slow_mo_shoot_counter = 0  # Reset counter when not in slow-time
+
+func _on_enemy_spawned(enemy: Node):
+	# IMMEDIATE response to new enemy spawn - zero reaction time
+	_handle_new_enemy(enemy)
+
+func _handle_new_enemy(enemy: Node):
+	# Check if this enemy is closer than current target
+	if not is_instance_valid(enemy):
+		return
+	
+	var enemy_distance = global_position.distance_to(enemy.global_position)
+	
+	# Update cache immediately if:
+	# - No current target, OR
+	# - New enemy is closer than current target, OR  
+	# - Current target is invalid
+	if (_nearest_enemy_cache == null or 
+		not is_instance_valid(_nearest_enemy_cache) or
+		enemy_distance < _nearest_enemy_distance):
+		
+		# IMMEDIATE cache update - no delays
+		_nearest_enemy_cache = enemy
+		_nearest_enemy_distance = enemy_distance
+		_enemy_cache_update_timer = 0.0
+		
+		# IMMEDIATELY face the enemy - no smooth rotation delay
+		shoot_angle = (enemy.global_position - global_position).angle()
+		
+		# IMMEDIATE continuous shooting - reset timer to 0 to allow instant shooting
+		shoot_timer = 0.0
 
 func shoot_bullet():
 	# Check if multi-bullet mode is enabled
@@ -523,17 +531,17 @@ func _create_muzzle_flash(flash_position: Vector2, shoot_direction: Vector2):
 	var flash_count = 4
 	for i in range(flash_count):
 		var flash := Sprite2D.new()
-		# Use procedural texture directly (no external file dependency)
-		flash.texture = get_random_muzzle_flash_texture()
+		# Use single optimized texture
+		flash.texture = get_muzzle_flash_texture()
 		
 		# Random positioning within small radius
 		var spread_angle = randf_range(-0.3, 0.3)  # Small spread in radians
 		var distance = randf_range(2.0, 8.0)
 		flash.position = Vector2.RIGHT.rotated(spread_angle) * distance
 		
-		# Random size variation (reduced)
-		var scale = randf_range(12.0, 18.0)  # Smaller scale
-		flash.scale = Vector2(scale, scale)
+		# Random size variation (uniform scale for square shape)
+		var scale = randf_range(3.0, 5.0)  # Increased size for better visibility
+		flash.scale = Vector2(scale, scale)  # Keep square aspect ratio
 		
 		# Bright yellow-orange color with maximum opacity
 		flash.modulate = Color(1.0, randf_range(0.6, 0.9), 0.0, 1.0)  # Maximum opacity
@@ -552,10 +560,10 @@ func _create_muzzle_flash(flash_position: Vector2, shoot_direction: Vector2):
 	cleanup_tween.tween_callback(flash_root.queue_free).set_delay(0.15)  # Shorter cleanup delay
 
 
-static func get_random_muzzle_flash_texture() -> ImageTexture:
-	if muzzle_flash_pool.is_empty():
-		_initialize_muzzle_flash_pool()
-	return muzzle_flash_pool[randi() % muzzle_flash_pool.size()]
+static func get_muzzle_flash_texture() -> ImageTexture:
+	if muzzle_flash_texture == null:
+		_initialize_muzzle_flash_texture()
+	return muzzle_flash_texture
 
 func _play_gunshot_sound():
 	# Use AudioUtils pool for gunshot sound with lower volume and random pitch
@@ -580,6 +588,6 @@ func _draw():
 	var corner3 = barrel_end - perp_dir
 	var corner4 = barrel_end + perp_dir
 	
-	# Draw rectangle
+	# Draw the barrel rectangle
 	var points = PackedVector2Array([corner1, corner2, corner3, corner4])
 	draw_colored_polygon(points, Color.GRAY)

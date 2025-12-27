@@ -67,6 +67,8 @@ var _spawner_cache: Node = null
 var _ui_cache: Node = null
 var _popup_manager_cache: Node = null
 var _ui_event_manager_cache: Node = null
+var _cache_cleanup_timer: float = 0.0
+const CACHE_CLEANUP_INTERVAL = 2.0  # Clean cache every 2 seconds
 
 # Continuous attack variables
 var is_attacking_food = false
@@ -110,21 +112,30 @@ func _ready():
 
 func _initialize_cached_references():
 	# Cache frequently accessed nodes
-	_player_cache = get_tree().get_first_node_in_group("player")
-	player = _player_cache  # Update reference
-	_spawner_cache = get_tree().get_first_node_in_group("enemy_spawner")
-	_ui_cache = get_tree().get_first_node_in_group("ui")
-	_popup_manager_cache = get_tree().get_first_node_in_group("popup_manager")
-	_ui_event_manager_cache = get_tree().get_first_node_in_group("ui_event_manager")
+	_refresh_all_caches()
 	_target_update_timer = 0.0
+
+func _refresh_all_caches():
+	# Centralized cache refresh for all frequently accessed nodes
+	_player_cache = CacheManager.get_first_node_in_group_cached("player", get_tree())
+	player = _player_cache  # Update reference
+	_spawner_cache = CacheManager.get_first_node_in_group_cached("enemy_spawner", get_tree())
+	_ui_cache = CacheManager.get_first_node_in_group_cached("ui", get_tree())
+	_popup_manager_cache = CacheManager.get_first_node_in_group_cached("popup_manager", get_tree())
+	_ui_event_manager_cache = CacheManager.get_first_node_in_group_cached("ui_event_manager", get_tree())
+
+func _ensure_valid_cache(cache_var: Node, group_name: String) -> Node:
+	# Consolidated cache validation with fallback
+	if cache_var == null or not is_instance_valid(cache_var):
+		return CacheManager.get_first_node_in_group_cached(group_name, get_tree())
+	return cache_var
 
 func _on_health_depleted():
 	_start_death_animation()
 
 func _on_damage_taken(amount: int):
-	# Increment player combo streak immediately for feedback (cached)
-	if _player_cache == null or not is_instance_valid(_player_cache):
-		_player_cache = CacheManager.get_first_node_in_group_cached("player", get_tree())
+	# Increment player combo streak immediately for feedback (consolidated cache)
+	_player_cache = _ensure_valid_cache(_player_cache, "player")
 	if _player_cache:
 		_player_cache.increment_combo_streak()
 	
@@ -202,18 +213,34 @@ func _find_target():
 	if targets_food:
 		# Find nearest food (cached)
 		var food_objects = CacheManager.get_nodes_in_group_cached("food", get_tree())
+		
 		if food_objects.size() > 0:
-			current_target = _get_nearest_node(food_objects)
+			var new_target = _get_nearest_node(food_objects)
+			if new_target and is_instance_valid(new_target):
+				current_target = new_target
+			else:
+				# Force cache refresh and try again
+				CacheManager.cleanup_invalid_references()
+				food_objects = get_tree().get_nodes_in_group("food")
+				if food_objects.size() > 0:
+					current_target = _get_nearest_node(food_objects)
+				else:
+					_fallback_to_player()
 		else:
 			# If no food available, fall back to cached player
-			if _player_cache == null or not is_instance_valid(_player_cache):
-				_player_cache = CacheManager.get_first_node_in_group_cached("player", get_tree())
-			current_target = _player_cache
+			_fallback_to_player()
 	else:
 		# Target cached player
-		if _player_cache == null or not is_instance_valid(_player_cache):
-			_player_cache = CacheManager.get_first_node_in_group_cached("player", get_tree())
+		_player_cache = _ensure_valid_cache(_player_cache, "player")
 		current_target = _player_cache
+
+func _fallback_to_player():
+	_player_cache = _ensure_valid_cache(_player_cache, "player")
+	if _player_cache and is_instance_valid(_player_cache):
+		current_target = _player_cache
+	else:
+		# Last resort - find player directly
+		current_target = get_tree().get_first_node_in_group("player")
 
 func _get_nearest_node(nodes: Array) -> Node:
 	if nodes.is_empty():
@@ -246,8 +273,10 @@ func _physics_process(delta):
 		_target_update_timer = 0.0
 	
 	# Periodic cache cleanup (every 2 seconds)
-	if Engine.get_process_frames() % 120 == 0:  # 120 frames = ~2 seconds at 60 FPS
+	_cache_cleanup_timer += delta
+	if _cache_cleanup_timer >= CACHE_CLEANUP_INTERVAL:
 		CacheManager.cleanup_invalid_references()
+		_cache_cleanup_timer = 0.0
 	
 	# Update attack cooldown
 	if attack_timer > 0:
@@ -269,7 +298,11 @@ func _physics_process(delta):
 	if current_target and is_instance_valid(current_target):
 		var direction = (current_target.global_position - global_position).normalized()
 		
-		# Move towards target
+		# Add collision avoidance for other enemies
+		var avoidance_vector = _calculate_enemy_avoidance()
+		direction = (direction + avoidance_vector).normalized()
+		
+		# Move towards target with avoidance
 		velocity = direction * SPEED
 		move_and_slide()
 		
@@ -280,6 +313,22 @@ func _physics_process(delta):
 				_attack_target()
 				# Stop moving when attacking
 				velocity = Vector2.ZERO
+
+func _calculate_enemy_avoidance() -> Vector2:
+	var avoidance = Vector2.ZERO
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	
+	for enemy in enemies:
+		if enemy == self or not is_instance_valid(enemy):
+			continue
+		
+		var distance = global_position.distance_to(enemy.global_position)
+		if distance < 50.0 and distance > 0:  # Avoid enemies within 50 pixels
+			var away_direction = (global_position - enemy.global_position).normalized()
+			var strength = 1.0 - (distance / 50.0)  # Stronger avoidance when closer
+			avoidance += away_direction * strength
+	
+	return avoidance
 
 func _attack_food(food_object):
 	# Only attack if cooldown is ready
@@ -320,27 +369,20 @@ func take_damage(damage: int, knockback_direction: Vector2):
 func _start_death_animation():
 	is_dying = true
 	
-	# Add score using cached UI event manager
-	if _ui_event_manager_cache == null or not is_instance_valid(_ui_event_manager_cache):
-		_ui_event_manager_cache = CacheManager.get_first_node_in_group_cached("ui_event_manager", get_tree())
+	# Add score using cached UI event manager (consolidated cache)
+	_ui_event_manager_cache = _ensure_valid_cache(_ui_event_manager_cache, "ui_event_manager")
 	if _ui_event_manager_cache:
 		_ui_event_manager_cache.add_score(SCORE_VALUE)
 	
-	# Use PopupManager for score popup (cached)
-	if _popup_manager_cache and is_instance_valid(_popup_manager_cache):
+	# Use PopupManager for score popup (consolidated cache)
+	_popup_manager_cache = _ensure_valid_cache(_popup_manager_cache, "popup_manager")
+	if _popup_manager_cache:
 		_popup_manager_cache.spawn_floating_popup(self, "+" + str(SCORE_VALUE), Color.YELLOW, Vector2(0, -50), 64)
-	else:
-		_popup_manager_cache = CacheManager.get_first_node_in_group_cached("popup_manager", get_tree())
-		if _popup_manager_cache:
-			_popup_manager_cache.spawn_floating_popup(self, "+" + str(SCORE_VALUE), Color.YELLOW, Vector2(0, -50), 64)
 	
-	# Notify enemy spawner to increase spawn frequency and update UI kill counter
-	if _spawner_cache and is_instance_valid(_spawner_cache):
+	# Notify enemy spawner to increase spawn frequency and update UI kill counter (consolidated cache)
+	_spawner_cache = _ensure_valid_cache(_spawner_cache, "enemy_spawner")
+	if _spawner_cache:
 		_spawner_cache.increment_kill_count()
-	else:
-		_spawner_cache = CacheManager.get_first_node_in_group_cached("enemy_spawner", get_tree())
-		if _spawner_cache:
-			_spawner_cache.increment_kill_count()
 	
 	# Trigger slow-time effect
 	TimeUtils.trigger_slow_time()
