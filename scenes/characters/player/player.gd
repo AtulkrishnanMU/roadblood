@@ -55,6 +55,7 @@ const COMBO_DURATION = 1.0  # Seconds before combo expires
 
 # Combo system variables
 var combo_streak: int = 0
+var best_combo_streak: int = 0
 var combo_active: bool = false
 var combo_timer: Timer = null
 var current_combo_popup: Node2D = null  # Track persistent combo popup
@@ -233,6 +234,10 @@ func increment_combo_streak():
 	combo_streak += 1
 	combo_active = true
 	
+	# Track best combo streak
+	if combo_streak > best_combo_streak:
+		best_combo_streak = combo_streak
+	
 	# Refresh combo timer
 	if combo_timer:
 		combo_timer.stop()
@@ -241,7 +246,11 @@ func increment_combo_streak():
 	# Update persistent combo popup
 	_create_or_update_combo_popup()
 	
+	# Emit signal for UI updates
 	emit_signal("combo_streak_changed", combo_streak)
+
+func get_best_combo_streak() -> int:
+	return best_combo_streak
 
 func reset_combo_streak():
 	combo_streak = 0

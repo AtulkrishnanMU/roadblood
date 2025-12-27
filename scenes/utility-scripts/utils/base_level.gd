@@ -460,6 +460,9 @@ func _trigger_game_over():
 	
 	print("GAME OVER!")
 	emit_signal("game_over")
+	
+	# Directly call the game over message to ensure it shows
+	_show_game_over_message()
 
 # Virtual method to be overridden by child levels
 func create_level_config() -> Dictionary:

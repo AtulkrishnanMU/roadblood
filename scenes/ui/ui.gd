@@ -19,6 +19,15 @@ var kill_counter_label: Label
 var score_label: Label
 var total_kills: int = 0
 var total_score: int = 0
+var best_combo_streak: int = 0
+
+# Game over screen variables
+var game_over_panel: Panel
+var game_over_title: Label
+var game_over_score: Label
+var game_over_kills: Label
+var game_over_combo: Label
+var game_over_restart_button: Button
 
 # Wave system UI elements
 var wave_label: Label
@@ -38,6 +47,9 @@ func _ready():
 	
 	# Setup UI event manager connections
 	ui_event_manager.setup(self)
+	
+	# Create game over screen
+	_create_game_over_screen()
 	
 	# Find the health bar and labels
 	var health_bar = get_node_or_null("HealthBar")
@@ -202,9 +214,159 @@ func update_kill_counter(kills: int):
 func update_score(score: int):
 	total_score = score
 	if score_label:
-		score_label.text = str(total_score)
+		score_label.text = "SCORE: " + str(total_score)
 
 func add_to_score(points: int):
 	total_score += points
 	if score_label:
-		score_label.text = str(total_score)
+		score_label.text = "SCORE: " + str(total_score)
+
+func _create_game_over_screen():
+	# Create game over panel
+	game_over_panel = Panel.new()
+	game_over_panel.name = "GameOverPanel"
+	game_over_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	game_over_panel.visible = false
+	add_child(game_over_panel)
+	
+	# Style the panel
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.0, 0.0, 0.0, 0.9)  # Dark semi-transparent background
+	panel_style.border_width_left = 4
+	panel_style.border_width_right = 4
+	panel_style.border_width_top = 4
+	panel_style.border_width_bottom = 4
+	panel_style.border_color = Color.RED
+	panel_style.corner_radius_top_left = 20
+	panel_style.corner_radius_top_right = 20
+	panel_style.corner_radius_bottom_left = 20
+	panel_style.corner_radius_bottom_right = 20
+	game_over_panel.add_theme_stylebox_override("panel", panel_style)
+	
+	# Create main container
+	var main_container = VBoxContainer.new()
+	main_container.name = "MainContainer"
+	main_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	main_container.add_theme_constant_override("separation", 30)
+	game_over_panel.add_child(main_container)
+	
+	# Add spacer at top
+	var top_spacer = Control.new()
+	top_spacer.custom_minimum_size.y = 100
+	main_container.add_child(top_spacer)
+	
+	# Game Over Title
+	game_over_title = Label.new()
+	game_over_title.text = "GAME OVER"
+	game_over_title.add_theme_font_size_override("font_size", 64)
+	game_over_title.add_theme_color_override("font_color", Color.RED)
+	game_over_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	FontConfig.apply_ui_font(game_over_title)
+	main_container.add_child(game_over_title)
+	
+	# Score Label
+	game_over_score = Label.new()
+	game_over_score.add_theme_font_size_override("font_size", 32)
+	game_over_score.add_theme_color_override("font_color", Color.YELLOW)
+	game_over_score.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	FontConfig.apply_ui_font(game_over_score)
+	main_container.add_child(game_over_score)
+	
+	# Kills Label
+	game_over_kills = Label.new()
+	game_over_kills.add_theme_font_size_override("font_size", 32)
+	game_over_kills.add_theme_color_override("font_color", Color.WHITE)
+	game_over_kills.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	FontConfig.apply_ui_font(game_over_kills)
+	main_container.add_child(game_over_kills)
+	
+	# Combo Label
+	game_over_combo = Label.new()
+	game_over_combo.add_theme_font_size_override("font_size", 32)
+	game_over_combo.add_theme_color_override("font_color", Color.CYAN)
+	game_over_combo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	FontConfig.apply_ui_font(game_over_combo)
+	main_container.add_child(game_over_combo)
+	
+	# Restart Button
+	game_over_restart_button = Button.new()
+	game_over_restart_button.text = "RESTART"
+	game_over_restart_button.custom_minimum_size = Vector2(200, 60)
+	game_over_restart_button.add_theme_font_size_override("font_size", 28)
+	game_over_restart_button.add_theme_color_override("font_color", Color.WHITE)
+	
+	# Style the button
+	var button_style = StyleBoxFlat.new()
+	button_style.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	button_style.border_width_left = 2
+	button_style.border_width_right = 2
+	button_style.border_width_top = 2
+	button_style.border_width_bottom = 2
+	button_style.border_color = Color.WHITE
+	button_style.corner_radius_top_left = 10
+	button_style.corner_radius_top_right = 10
+	button_style.corner_radius_bottom_left = 10
+	button_style.corner_radius_bottom_right = 10
+	game_over_restart_button.add_theme_stylebox_override("normal", button_style)
+	
+	var button_hover_style = StyleBoxFlat.new()
+	button_hover_style.bg_color = Color(0.4, 0.4, 0.4, 0.8)
+	button_hover_style.border_width_left = 2
+	button_hover_style.border_width_right = 2
+	button_hover_style.border_width_top = 2
+	button_hover_style.border_width_bottom = 2
+	button_hover_style.border_color = Color.YELLOW
+	button_hover_style.corner_radius_top_left = 10
+	button_hover_style.corner_radius_top_right = 10
+	button_hover_style.corner_radius_bottom_left = 10
+	button_hover_style.corner_radius_bottom_right = 10
+	game_over_restart_button.add_theme_stylebox_override("hover", button_hover_style)
+	
+	game_over_restart_button.pressed.connect(_on_restart_pressed)
+	main_container.add_child(game_over_restart_button)
+
+func show_game_over_message(message: String):
+	print("show_game_over_message called with: ", message)
+	
+	# Get final stats from player
+	var player = get_tree().get_first_node_in_group("player")
+	if player:
+		if player.has_method("get_best_combo_streak"):
+			best_combo_streak = player.get_best_combo_streak()
+		elif "combo_streak" in player:
+			best_combo_streak = player.combo_streak
+	
+	# Update game over labels
+	if game_over_title:
+		game_over_title.text = message
+	if game_over_score:
+		game_over_score.text = "SCORE: " + str(total_score)
+	if game_over_kills:
+		game_over_kills.text = "KILLS: " + str(total_kills)
+	if game_over_combo:
+		game_over_combo.text = "BEST COMBO: " + str(best_combo_streak)
+	
+	# Show the game over screen
+	if game_over_panel:
+		game_over_panel.visible = true
+		print("Game over panel made visible")
+		
+		# Pause the game
+		get_tree().paused = true
+	else:
+		print("ERROR: game_over_panel is null!")
+
+func _on_restart_pressed():
+	# Hide game over screen
+	if game_over_panel:
+		game_over_panel.visible = false
+	
+	# Unpause the game
+	get_tree().paused = false
+	
+	# Restart the current scene
+	get_tree().reload_current_scene()
+
+func update_best_combo_streak(combo: int):
+	if combo > best_combo_streak:
+		best_combo_streak = combo
