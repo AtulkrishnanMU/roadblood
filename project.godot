@@ -11,9 +11,21 @@ config_version=5
 [application]
 
 config/name="Roadblood"
-run/main_scene="uid://c5chywouv085q"
+run/main_scene="uid://bvn8x7q2k4m5p"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
+#Windowsettingsdisplay/window/size/viewport_width=1920
+display/window/size/viewport_height=1080
+display/window/size/mode=3
+display/window/handling/allow_resize=false
+display/window/handling/always_on_top=false
+display/window/handling/borderless=true
+#Stretchsettingsdisplay/window/stretch/mode="canvas_items"
+display/window/stretch/aspect="keep"
+display/window/stretch/scale=1.0
+window/size/borderless=true
+window/size/fullscreen=true
+window/size/resizable=false
 
 [autoload]
 
@@ -21,6 +33,12 @@ BloodTextureManager="*res://scenes/utility-scripts/utils/blood_texture_manager.g
 PopupManager="*res://scenes/utility-scripts/utils/popup_manager.gd"
 UIStyleCache="*res://scenes/utility-scripts/utils/ui_style_cache.gd"
 UIEventManager="*res://scenes/utility-scripts/utils/ui_event_manager.gd"
+ButtonUtils="*res://scenes/utility-scripts/utils/button_utils.gd"
+CameraShakeManager="*res://scenes/utility-scripts/utils/camera_shake_manager.gd"
+
+[display]
+
+window/stretch/mode="canvas_items"
 
 [input]
 
@@ -33,4 +51,12 @@ toggle_rotation={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
-environment/defaults/default_clear_color=Color(0.3019608, 0.5019608, 0.3019608, 1)
+environment/defaults/default_clear_color=Color(0, 0, 0, 1)
+
+[window]
+
+size/viewport_width=1920
+size/viewport_height=1080
+size/resizable=true
+stretch/mode="canvas_items"
+stretch/aspect="expand"

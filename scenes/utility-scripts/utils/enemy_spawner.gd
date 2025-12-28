@@ -3,15 +3,9 @@ extends Node2D
 const BASIC_RAT_SCENE = preload("res://scenes/characters/enemy/basic_rat.tscn")
 const BIG_RAT_SCENE = preload("res://scenes/characters/enemy/big_rat.tscn")
 const CIRCULAR_WAVE_SCENE = preload("res://scenes/effects/circular_wave.tscn")
-const SPAWN_RADIUS = 1200.0  # distance from player to spawn enemies (increased from 800)
-const MIN_SPAWN_DISTANCE = 400.0  # minimum distance from player for wave spawning
-const MAX_SPAWN_ATTEMPTS = 10  # maximum attempts to find a valid spawn position
-const ROOM_WIDTH = 1200.0  # room width in pixels
-const ROOM_HEIGHT = 800.0  # room height in pixels
-const ROOM_CENTER_X = 576.0  # room center X position
-const ROOM_CENTER_Y = 320.0  # room center Y position (corrected from 400)
-const ROOM_SCALE_X = 2.62  # room scale X
-const ROOM_SCALE_Y = 2.23  # room scale Y
+const SPAWN_RADIUS = 1500.0  # distance from player to spawn enemies (increased from 1200)
+const MIN_SPAWN_DISTANCE = 600.0  # Increased minimum distance from player for wave spawning
+const MAX_SPAWN_ATTEMPTS = 15  # maximum attempts to find a valid spawn position
 const FADE_IN_DURATION = 0.3  # duration for fade-in effect (reduced from 1.0 for faster reaction)
 
 signal enemy_killed
@@ -122,52 +116,59 @@ func increment_kill_count():
 		pass  # UI not found
 
 func _get_random_position_on_room_edge() -> Vector2:
-	# Calculate actual room boundaries with scale
-	var actual_room_width = ROOM_WIDTH * ROOM_SCALE_X
-	var actual_room_height = ROOM_HEIGHT * ROOM_SCALE_Y
+	# Find the room in the scene
+	var room = get_tree().get_first_node_in_group("room")
+	if not room:
+		# Try to find the room by name as fallback
+		room = get_tree().get_first_node_in_group("Room") or get_tree().get_first_node_in_group("room_instance")
+		if not room:
+			# Try to find any node with "Room" in the name
+			for node in get_tree().get_nodes_in_group("rooms"):
+				if "room" in node.name.to_lower():
+					room = node
+					break
+		
+		if not room:
+			print("WARNING: No room found in scene, using fallback position")
+			# Fallback if no room found - spawn at a distance from player
+			if player:
+				var angle = randf() * TAU
+				var distance = MIN_SPAWN_DISTANCE + 100
+				return player.global_position + Vector2.from_angle(angle) * distance
+			return Vector2(0, 0)
 	
-	var room_left = ROOM_CENTER_X - actual_room_width / 2
-	var room_right = ROOM_CENTER_X + actual_room_width / 2
-	var room_top = ROOM_CENTER_Y - actual_room_height / 2
-	var room_bottom = ROOM_CENTER_Y + actual_room_height / 2
+	print("Found room: ", room.name)
 	
-	# Add margin to ensure enemies spawn INSIDE the room
-	var spawn_margin = 50.0
-	room_left += spawn_margin
-	room_right -= spawn_margin
-	room_top += spawn_margin
-	room_bottom -= spawn_margin
+	# Check if room has the get_random_edge_position method
+	if room.has_method("get_random_edge_position"):
+		var spawn_position = room.get_random_edge_position()
+		print("Initial spawn position: ", spawn_position)
+		
+		# Ensure minimum distance from player
+		if player and spawn_position.distance_to(player.global_position) < MIN_SPAWN_DISTANCE:
+			print("Spawn position too close to player (", spawn_position.distance_to(player.global_position), " < ", MIN_SPAWN_DISTANCE, "), retrying...")
+			# Try again if too close to player
+			for attempt in range(MAX_SPAWN_ATTEMPTS):
+				spawn_position = room.get_random_edge_position()
+				print("Attempt ", attempt + 1, ": ", spawn_position, " distance: ", spawn_position.distance_to(player.global_position))
+				if spawn_position.distance_to(player.global_position) >= MIN_SPAWN_DISTANCE:
+					print("Found valid spawn position after ", attempt + 1, " attempts")
+					return spawn_position
+			print("WARNING: Could not find valid spawn position after ", MAX_SPAWN_ATTEMPTS, " attempts")
+		else:
+			print("Spawn position valid, distance: ", spawn_position.distance_to(player.global_position))
+		
+		return spawn_position
+	else:
+		print("WARNING: Room doesn't have get_random_edge_position method")
 	
-	# Choose random wall (0: top, 1: right, 2: bottom, 3: left)
-	var wall_choice = randi() % 4
-	
-	var spawn_position: Vector2
-	
-	match wall_choice:
-		0:  # Top wall (spawn just inside top edge)
-			spawn_position = Vector2(
-				randf_range(room_left, room_right),
-				room_top + 10  # Small buffer from exact edge
-			)
-		1:  # Right wall (spawn just inside right edge)
-			spawn_position = Vector2(
-				room_right - 10,  # Small buffer from exact edge
-				randf_range(room_top, room_bottom)
-			)
-		2:  # Bottom wall (spawn just inside bottom edge)
-			spawn_position = Vector2(
-				randf_range(room_left, room_right),
-				room_bottom - 10  # Small buffer from exact edge
-			)
-		3:  # Left wall (spawn just inside left edge)
-			spawn_position = Vector2(
-				room_left + 10,  # Small buffer from exact edge
-				randf_range(room_top, room_bottom)
-			)
-		_:
-			spawn_position = Vector2(room_left + 50, room_top + 50)  # Fallback
-	
-	return spawn_position
+	# Fallback to old method if room doesn't have the method
+	print("Using fallback position")
+	if player:
+		var angle = randf() * TAU
+		var distance = MIN_SPAWN_DISTANCE + 100
+		return player.global_position + Vector2.from_angle(angle) * distance
+	return Vector2(0, 0)
 
 func spawn_circular_wave():
 	if not player:
@@ -189,11 +190,7 @@ func _fade_in_enemy(enemy: CharacterBody2D):
 	fade_tween.tween_property(enemy, "modulate:a", 1.0, FADE_IN_DURATION)
 
 func _get_spawn_position() -> Vector2:
-	# Use configured spawn points if available, but ensure minimum distance from player
-	if not current_spawn_points.is_empty():
-		return _get_valid_spawn_point_from_list()
-	
-	# Fallback to original room edge spawning
+	# Always use the improved room edge spawning
 	return _get_random_position_on_room_edge()
 
 func _get_valid_spawn_point_from_list() -> Vector2:

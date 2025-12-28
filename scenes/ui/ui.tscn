@@ -58,18 +58,18 @@ text = "200/200 HP"
 [node name="KillCounterLabel" type="Label" parent="HealthBar"]
 layout_mode = 0
 offset_left = 943.0
-offset_top = 19.0
+offset_top = 23.0
 offset_right = 1067.0
-offset_bottom = 43.0
+offset_bottom = 47.0
 text = "💀0"
 horizontal_alignment = 2
 
 [node name="ScoreLabel" type="Label" parent="."]
 layout_mode = 0
-offset_left = 50.0
-offset_top = 50.0
-offset_right = 250.0
-offset_bottom = 74.0
+offset_left = 59.0
+offset_top = 51.0
+offset_right = 259.0
+offset_bottom = 75.0
 text = "SCORE: 0"
 
 [node name="WaveTimerLabel" type="Label" parent="."]

@@ -8,7 +8,8 @@ const DEFAULT_UI_FONT_SIZE := 32
 const DEFAULT_DIALOGUE_FONT_SIZE := 16
 const DEFAULT_TITLE_FONT_SIZE := 32
 const DEFAULT_POPUP_FONT_SIZE := 32
-const DEFAULT_OUTLINE_SIZE := 0
+const DEFAULT_OUTLINE_SIZE := 8
+const POPUP_OUTLINE_SIZE := 30  # Thicker outlines for popups
 
 # Cached font resource
 static var _default_font: FontFile = null
@@ -43,6 +44,9 @@ static func apply_default_font_rich(rich_label: RichTextLabel, font_size: int = 
 		rich_label.add_theme_font_size_override("italics_font_size", font_size)
 		rich_label.add_theme_font_size_override("bold_italics_font_size", font_size)
 		rich_label.add_theme_font_size_override("mono_font_size", font_size)
+		# Add black outline for better visibility
+		rich_label.add_theme_constant_override("outline_size", DEFAULT_OUTLINE_SIZE)
+		rich_label.add_theme_color_override("font_outline_color", Color.BLACK)
 
 # Apply default font styling to a Button
 static func apply_default_font_button(button: Button, font_size: int = DEFAULT_UI_FONT_SIZE) -> void:
@@ -76,22 +80,24 @@ static func apply_title_font(label: Label) -> void:
 	apply_default_font(label, DEFAULT_TITLE_FONT_SIZE)
 
 static func apply_popup_font(label: Label) -> void:
-	# Apply font without outlines for popup text
+	# Apply font with thick black outlines for popup text
 	var font := get_default_font()
 	if font and label:
 		label.add_theme_font_override("font", font)
 		label.add_theme_font_size_override("font_size", DEFAULT_POPUP_FONT_SIZE)
-		# Explicitly remove outlines
-		label.add_theme_constant_override("outline_size", 0)
+		# Add thick black outline for better visibility
+		label.add_theme_constant_override("outline_size", POPUP_OUTLINE_SIZE)
+		label.add_theme_color_override("font_outline_color", Color.BLACK)
 
 static func apply_popup_font_with_size(label: Label, font_size: int) -> void:
-	# Apply font without outlines for popup text with custom size
+	# Apply font with thick black outlines for popup text with custom size
 	var font := get_default_font()
 	if font and label:
 		label.add_theme_font_override("font", font)
 		label.add_theme_font_size_override("font_size", font_size)
-		# Explicitly remove outlines
-		label.add_theme_constant_override("outline_size", 0)
+		# Add thick black outline for better visibility
+		label.add_theme_constant_override("outline_size", POPUP_OUTLINE_SIZE)
+		label.add_theme_color_override("font_outline_color", Color.BLACK)
 
 # Apply custom font (for when you need a different font)
 static func apply_custom_font(label: Label, font_path: String, font_size: int = DEFAULT_FONT_SIZE) -> void:
@@ -99,6 +105,9 @@ static func apply_custom_font(label: Label, font_path: String, font_size: int = 
 	if custom_font and label:
 		label.add_theme_font_override("font", custom_font)
 		label.add_theme_font_size_override("font_size", font_size)
+		# Add black outline for better visibility
+		label.add_theme_constant_override("outline_size", DEFAULT_OUTLINE_SIZE)
+		label.add_theme_color_override("font_outline_color", Color.BLACK)
 
 # Apply custom font to RichTextLabel
 static func apply_custom_font_rich(rich_label: RichTextLabel, font_path: String, font_size: int = DEFAULT_DIALOGUE_FONT_SIZE) -> void:
@@ -114,3 +123,6 @@ static func apply_custom_font_rich(rich_label: RichTextLabel, font_path: String,
 		rich_label.add_theme_font_size_override("italics_font_size", font_size)
 		rich_label.add_theme_font_size_override("bold_italics_font_size", font_size)
 		rich_label.add_theme_font_size_override("mono_font_size", font_size)
+		# Add black outline for better visibility
+		rich_label.add_theme_constant_override("outline_size", DEFAULT_OUTLINE_SIZE)
+		rich_label.add_theme_color_override("font_outline_color", Color.BLACK)

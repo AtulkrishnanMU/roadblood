@@ -4,15 +4,11 @@ class_name FoodObject
 
 signal health_depleted
 
-# Import floating behavior and health component
-const FloatingBehavior = preload("res://scenes/utility-scripts/utils/floating_behavior.gd")
+# Import health component
 const HealthComponent = preload("res://scenes/utility-scripts/utils/health_component.gd")
 
 var health_component: HealthComponent
 var health_bar: ProgressBar
-
-# Floating behavior
-var floating_behavior: FloatingBehavior
 
 func _ready():
 	add_to_group("food")
@@ -23,9 +19,6 @@ func _ready():
 	# Connect health component signal
 	health_component.health_depleted.connect(_destroy_food)
 	
-	# Initialize floating behavior with faster speed for food
-	floating_behavior = FloatingBehavior.new(self, 80.0, 20.0)
-	
 	# Get the health bar node from the scene instead of creating it programmatically
 	health_bar = $HealthBar
 	if health_bar:
@@ -34,8 +27,7 @@ func _ready():
 		_setup_health_bar_style()
 
 func _physics_process(delta):
-	# Update floating animation using centralized behavior with cosine easing
-	floating_behavior.update_floating_cosine(self, delta)
+	pass
 
 func _setup_health_bar_style():
 	# Style the health bar

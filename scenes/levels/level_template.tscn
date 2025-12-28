@@ -1,7 +1,7 @@
 [gd_scene load_steps=10 format=3 uid="uid://c5chywouv085q"]
 
 [ext_resource type="PackedScene" uid="uid://bvxw8y7q2n3rk" path="res://scenes/characters/player/player.tscn" id="1_eyte8"]
-[ext_resource type="Script" uid="uid://w36ywicfi4gk" path="res://scenes/levels/level_1.gd" id="1_qvykx"]
+[ext_resource type="Script" uid="uid://w36ywicfi4gk" path="res://scenes/levels/map1/level_1.gd" id="1_qvykx"]
 [ext_resource type="PackedScene" uid="uid://b3dc8kuyva8ve" path="res://scenes/ui/ui.tscn" id="3_ui"]
 [ext_resource type="Script" uid="uid://dn6ppqhqcu7ek" path="res://scenes/utility-scripts/utils/enemy_spawner.gd" id="4_spawner"]
 [ext_resource type="Script" uid="uid://dlxhp6jx01k5t" path="res://scenes/utility-scripts/utils/time_utils.gd" id="5_time_utils"]
@@ -14,8 +14,8 @@
 script = ExtResource("1_qvykx")
 
 [node name="Room" parent="." instance=ExtResource("7_room")]
-position = Vector2(576, 319.99997)
-scale = Vector2(2.6203313, 2.2300773)
+position = Vector2(584, 315)
+scale = Vector2(3.5310752, 3.0051813)
 
 [node name="TimeUtils" type="Node" parent="."]
 script = ExtResource("5_time_utils")
@@ -34,10 +34,10 @@ position = Vector2(568, 445)
 
 [node name="UI" parent="UI" instance=ExtResource("3_ui")]
 
-[node name="Player" parent="." instance=ExtResource("1_eyte8")]
-position = Vector2(574, 323)
-
-[node name="Camera2D" type="Camera2D" parent="Player"]
-position = Vector2(-1, -3)
-zoom = Vector2(0.38, 0.38)
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(573, 320)
+zoom = Vector2(0.28, 0.28)
 position_smoothing_enabled = true
+
+[node name="Player" parent="." instance=ExtResource("1_eyte8")]
+position = Vector2(575.99994, 225)

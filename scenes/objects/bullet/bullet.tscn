@@ -1,14 +1,15 @@
 [gd_scene load_steps=3 format=3 uid="uid://bvxw8y7q2n5lm"]
 
-[ext_resource type="Script" path="res://scenes/objects/bullet/bullet.gd" id="BulletScript"]
+[ext_resource type="Script" uid="uid://ct13offiktfku" path="res://scenes/objects/bullet/bullet.gd" id="BulletScript"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
 size = Vector2(12, 12)
 
 [node name="Bullet" type="CharacterBody2D"]
+scale = Vector2(3.0338726, 3.0338726)
 collision_layer = 4
 collision_mask = 2
-script = ExtResource( "BulletScript" )
+script = ExtResource("BulletScript")
 
 [node name="ColorRect" type="ColorRect" parent="."]
 custom_minimum_size = Vector2(12, 12)
@@ -16,7 +17,7 @@ offset_left = -6.0
 offset_top = -6.0
 offset_right = 6.0
 offset_bottom = 6.0
-color = Color(1, 1, 1, 1)
+metadata/_edit_use_anchors_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_1")

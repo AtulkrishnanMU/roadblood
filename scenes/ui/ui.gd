@@ -3,12 +3,12 @@ extends Control
 # Preload UI style cache
 const UIStyleCache = preload("res://scenes/utility-scripts/utils/ui_style_cache.gd")
 
-const HEALTH_HIGH_COLOR = Color(0.2, 0.8, 0.2, 1)  # Green for high health (>50%)
-const HEALTH_MEDIUM_COLOR = Color(0.8, 0.8, 0.2, 1)  # Yellow for medium health (<50%)
-const HEALTH_LOW_COLOR = Color(0.8, 0.2, 0.2, 1)   # Red for low health (<20%)
-const HEALTH_HIGH_OUTLINE = Color(0.1, 0.6, 0.1, 1)  # Darker green outline
-const HEALTH_MEDIUM_OUTLINE = Color(0.6, 0.6, 0.1, 1)  # Darker yellow outline
-const HEALTH_LOW_OUTLINE = Color(0.6, 0.1, 0.1, 1)   # Darker red outline
+const HEALTH_HIGH_COLOR = Color(0.7411765, 0.8117647, 0.23137255, 1)  # BDCF3B - Green for high health (>50%)
+const HEALTH_MEDIUM_COLOR = Color(0.95686275, 0.9254902, 0.3647059, 1)  # F4EC5D - Yellow for medium health (<50%)
+const HEALTH_LOW_COLOR = Color(0.8666667, 0.2470588, 0.0, 1)  # DD3F00 - Red for low health (<20%)
+const HEALTH_HIGH_OUTLINE = Color(0.5411765, 0.6117647, 0.03137255, 1)  # Darker BDCF3B outline
+const HEALTH_MEDIUM_OUTLINE = Color(0.75686275, 0.7254902, 0.1647059, 1)  # Darker F4EC5D outline
+const HEALTH_LOW_OUTLINE = Color(0.6666667, 0.0470588, 0.0, 1)  # Darker DD3F00 outline
 const HEALTH_MEDIUM_THRESHOLD = 0.5  # Below this percentage = yellow
 const HEALTH_LOW_THRESHOLD = 0.2   # Below this percentage = red
 const TRANSITION_DURATION = 0.5  # Duration for smooth transitions
@@ -59,6 +59,10 @@ func _ready():
 		# Apply default font to health label
 		if health_label:
 			FontConfig.apply_ui_font(health_label)
+		
+		# Set initial health bar color to high health color
+		_update_fill_color(HEALTH_HIGH_COLOR)
+		_update_outline_color(HEALTH_HIGH_OUTLINE)
 	
 	# Find other labels
 	kill_counter_label = get_node_or_null("HealthBar/KillCounterLabel")
@@ -183,23 +187,42 @@ func _update_fill_color(color: Color):
 	if not health_bar:
 		return
 		
-	# Use cached style instead of duplicating
-	var fill_style = UIStyleCache.get_style(UIStyleCache.StyleType.HEALTH_BAR, 0)
-	if fill_style and fill_style is StyleBoxFlat:
-		fill_style.bg_color = color
-		fill_style.border_color = color  # Update fill border color to match fill
-		health_bar.add_theme_stylebox_override("fill", fill_style)
+	# Create fresh style for fill with thicker border
+	var fill_style = StyleBoxFlat.new()
+	fill_style.bg_color = color
+	fill_style.border_color = Color.BLACK  # Black border for fill too
+	fill_style.border_width_left = 3
+	fill_style.border_width_right = 3
+	fill_style.border_width_top = 3
+	fill_style.border_width_bottom = 3
+	fill_style.corner_radius_top_left = 4
+	fill_style.corner_radius_top_right = 4
+	fill_style.corner_radius_bottom_left = 4
+	fill_style.corner_radius_bottom_right = 4
+	fill_style.expand_margin_left = 1
+	fill_style.expand_margin_right = 1
+	fill_style.expand_margin_top = 1
+	fill_style.expand_margin_bottom = 1
+	health_bar.add_theme_stylebox_override("fill", fill_style)
 
 func _update_outline_color(color: Color):
 	var health_bar = get_node_or_null("HealthBar")
 	if not health_bar:
 		return
 		
-	# Use cached style instead of duplicating
-	var bg_style = UIStyleCache.get_style(UIStyleCache.StyleType.BACKGROUND_PANEL)
-	if bg_style and bg_style is StyleBoxFlat:
-		bg_style.border_color = color
-		health_bar.add_theme_stylebox_override("background", bg_style)
+	# Create fresh style for background with very thick black border
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.1, 0.1, 0.1, 1)  # Darker background
+	bg_style.border_color = Color.BLACK  # Always black outline
+	bg_style.border_width_left = 6  # Much thicker border
+	bg_style.border_width_right = 6
+	bg_style.border_width_top = 6
+	bg_style.border_width_bottom = 6
+	bg_style.corner_radius_top_left = 4
+	bg_style.corner_radius_top_right = 4
+	bg_style.corner_radius_bottom_left = 4
+	bg_style.corner_radius_bottom_right = 4
+	health_bar.add_theme_stylebox_override("background", bg_style)
 
 func update_kill_counter(kills: int):
 	total_kills = kills

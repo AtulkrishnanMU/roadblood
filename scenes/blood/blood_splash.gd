@@ -4,13 +4,16 @@ const BLOOD_DROPLET_SCENE := preload("res://scenes/blood/blood_droplet.tscn")
 const BLOOD_FLOATING_DECAL_SCENE := preload("res://scenes/blood/blood_floating_decal.tscn")
 const RandomCacheScript = preload("res://scenes/utility-scripts/utils/random_cache.gd")
 
+# Default particle counts (can be overridden by BloodEffectsPool)
 const DROPLET_COUNT := 12
-const FLOATING_DECAL_COUNT := 12  # Increased from 4 to 12 (3x more floating particles)
-const DEAD_ENEMY_DROPLET_COUNT := 3  # Reduced blood for dead enemies
-const DEAD_ENEMY_FLOATING_DECAL_COUNT := 6  # Increased from 2 to 6 (3x more for dead enemies)
+const FLOATING_DECAL_COUNT := 12
+const DEAD_ENEMY_DROPLET_COUNT := 3
+const DEAD_ENEMY_FLOATING_DECAL_COUNT := 6
 
-var direction: Vector2 = Vector2.RIGHT  # Default direction, can be set from outside
-var is_dead_enemy: bool = false  # Flag to reduce blood amount
+var direction: Vector2 = Vector2.RIGHT
+var is_dead_enemy: bool = false
+var custom_droplet_count: int = -1  # -1 means use default
+var custom_floating_decal_count: int = -1  # -1 means use default
 
 func _ready() -> void:
 	call_deferred("_spawn_blood_droplets")
@@ -21,9 +24,15 @@ func set_direction(dir: Vector2) -> void:
 func set_dead_enemy(dead: bool) -> void:
 	is_dead_enemy = dead
 
+# Allow BloodEffectsPool to override particle counts for optimization
+func set_particle_counts(droplet_count: int, floating_decal_count: int) -> void:
+	custom_droplet_count = droplet_count
+	custom_floating_decal_count = floating_decal_count
+
 func _spawn_blood_droplets() -> void:
-	var droplet_count = DEAD_ENEMY_DROPLET_COUNT if is_dead_enemy else DROPLET_COUNT
-	var floating_decal_count = DEAD_ENEMY_FLOATING_DECAL_COUNT if is_dead_enemy else FLOATING_DECAL_COUNT
+	# Use custom counts if set, otherwise use defaults
+	var droplet_count = custom_droplet_count if custom_droplet_count > 0 else (DEAD_ENEMY_DROPLET_COUNT if is_dead_enemy else DROPLET_COUNT)
+	var floating_decal_count = custom_floating_decal_count if custom_floating_decal_count > 0 else (DEAD_ENEMY_FLOATING_DECAL_COUNT if is_dead_enemy else FLOATING_DECAL_COUNT)
 	
 	# Spawn regular falling droplets in directional burst
 	for i in range(droplet_count):

@@ -9,7 +9,7 @@ static var _group_cache: Dictionary = {}
 static var _node_cache: Dictionary = {}
 static var _nearest_enemy_cache: Dictionary = {}
 static var _cache_frame_counter: int = 0
-static var _cache_invalidation_frames: int = 90  # Invalidate cache every 90 frames (~1.5 seconds at 60 FPS)
+static var _cache_invalidation_frames: int = 180  # Increased from 90 to 180 frames (~3 seconds at 60 FPS) for better performance with many enemies
 
 # Cache invalidation tracking
 static var _last_enemy_count: int = 0
@@ -33,14 +33,16 @@ static func get_nodes_in_group_cached(group_name: String, tree: SceneTree) -> Ar
 		
 		match group_name:
 			"enemies":
-				# Invalidate if enemy count changed or too many frames passed
+				# Invalidate only if enemy count changed significantly (more than 5% change) or too many frames passed
 				var current_count = cache_data.nodes.size()
-				if current_count != _last_enemy_count or frame_diff > _cache_invalidation_frames:
+				var count_change = abs(current_count - _last_enemy_count)
+				var percent_change = float(count_change) / max(_last_enemy_count, 1)
+				if percent_change > 0.05 or frame_diff > _cache_invalidation_frames * 2:  # 5% threshold or longer interval
 					should_invalidate = true
 					_last_enemy_count = current_count
 			"player", "enemy_spawner", "ui", "popup_manager":
-				# Invalidate much less frequently for static groups (4x base threshold)
-				should_invalidate = frame_diff > _cache_invalidation_frames * 4
+				# Invalidate much less frequently for static groups (6x base threshold)
+				should_invalidate = frame_diff > _cache_invalidation_frames * 6
 			_:
 				# Default invalidation
 				should_invalidate = frame_diff > _cache_invalidation_frames

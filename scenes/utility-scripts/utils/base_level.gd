@@ -97,10 +97,14 @@ func _connect_signals():
 	if player and player.has_signal("damage_taken"):
 		player.damage_taken.connect(_on_player_damaged)
 	
+	# Connect to player health depleted signal for game over condition
+	if player and player.has_method("get_health_component"):
+		var health_comp = player.get_health_component()
+		if health_comp and health_comp.has_signal("health_depleted"):
+			health_comp.health_depleted.connect(_on_player_health_depleted)
+	
 	# Connect to player health changes for health-based performance tracking
-	if player and player.has_signal("health_changed"):
-		player.health_changed.connect(_on_player_health_changed)
-	elif player and player.has_method("get_health_component"):
+	if player and player.has_method("get_health_component"):
 		var health_comp = player.get_health_component()
 		if health_comp and health_comp.has_signal("health_changed"):
 			health_comp.health_changed.connect(_on_player_health_changed)
@@ -427,6 +431,10 @@ func _on_player_damaged(amount: int):
 	_update_current_health()
 	# Check performance periodically
 	_check_performance_if_needed()
+
+func _on_player_health_depleted():
+	# Player died - trigger game over
+	_trigger_game_over()
 
 func _on_player_health_changed(current: int, max: int):
 	current_player_health = current

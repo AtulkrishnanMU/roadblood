@@ -5,6 +5,9 @@ class_name UIStyleCacheNode
 static var style_cache: Dictionary = {}
 static var cache_initialized = false
 
+# Preload FontConfig for consistent font usage
+const FontConfig = preload("res://scenes/utility-scripts/utils/font_config.gd")
+
 # Style variation types
 enum StyleType {
 	HEALTH_BAR,
@@ -39,15 +42,28 @@ static func initialize_cache():
 static func _create_health_bar_styles():
 	var health_styles = []
 	
+	# Custom colors for health bar states
+	var high_health_color = Color(0.7411765, 0.8117647, 0.23137255, 1)  # BDCF3B
+	var medium_health_color = Color(0.95686275, 0.9254902, 0.3647059, 1)  # F4EC5D
+	var low_health_color = Color(0.8666667, 0.2470588, 0.0, 1)  # DD3F00
+	
 	# Different health bar styles for different states
+	var colors = [
+		low_health_color,           # 0 - Very low health (red)
+		low_health_color.lerp(medium_health_color, 0.3),  # 1 - Low health
+		medium_health_color,        # 2 - Medium health (yellow)
+		medium_health_color.lerp(high_health_color, 0.5),   # 3 - Good health
+		high_health_color            # 4 - High health (green)
+	]
+	
 	for i in range(5):  # 5 different health states
 		var style = StyleBoxFlat.new()
-		style.bg_color = Color.RED.lerp(Color.GREEN, float(i) / 4.0)
+		style.bg_color = colors[i]
 		style.border_width_left = 2
 		style.border_width_right = 2
 		style.border_width_top = 2
 		style.border_width_bottom = 2
-		style.border_color = Color.BLACK
+		style.border_color = colors[i].darkened(0.3)  # Darker border
 		style.corner_radius_top_left = 4
 		style.corner_radius_top_right = 4
 		style.corner_radius_bottom_left = 4
@@ -58,7 +74,9 @@ static func _create_health_bar_styles():
 
 # Create label style variations
 static func _create_label_styles():
+	# Score label using FontConfig
 	var score_style = Label.new()
+	FontConfig.apply_ui_font(score_style)
 	score_style.add_theme_font_size_override("font_size", 24)
 	score_style.add_theme_color_override("font_color", Color.WHITE)
 	score_style.add_theme_color_override("font_shadow_color", Color.BLACK)
@@ -66,7 +84,9 @@ static func _create_label_styles():
 	score_style.add_theme_constant_override("shadow_offset_y", 1)
 	style_cache[StyleType.SCORE_LABEL] = score_style
 	
+	# Combo label using FontConfig
 	var combo_style = Label.new()
+	FontConfig.apply_ui_font(combo_style)
 	combo_style.add_theme_font_size_override("font_size", 32)
 	combo_style.add_theme_color_override("font_color", Color.ORANGE)
 	combo_style.add_theme_color_override("font_shadow_color", Color.BLACK)

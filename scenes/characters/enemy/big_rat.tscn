@@ -1,5 +1,6 @@
-[gd_scene load_steps=4 format=3 uid="uid://dyrfq5k4ckrpv"]
+[gd_scene load_steps=10 format=3 uid="uid://dyrfq5k4ckrpv"]
 
+[ext_resource type="Texture2D" uid="uid://5udfghwf4c0x" path="res://sprites/characters/big enemy/DinoSprites - doux.png" id="2_iyjw5"]
 [ext_resource type="Script" uid="uid://gyv77fnyaboh" path="res://scenes/characters/enemy/big_rat.gd" id="BigRatScript"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
@@ -8,18 +9,57 @@ size = Vector2(70.58321, 43.400276)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2"]
 size = Vector2(55, 35)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_2agpx"]
+atlas = ExtResource("2_iyjw5")
+region = Rect2(144, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_gpqai"]
+atlas = ExtResource("2_iyjw5")
+region = Rect2(168, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dgn80"]
+atlas = ExtResource("2_iyjw5")
+region = Rect2(192, 0, 24, 24)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_7qv7k"]
+atlas = ExtResource("2_iyjw5")
+region = Rect2(216, 0, 24, 24)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_mf6sw"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2agpx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_gpqai")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dgn80")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_7qv7k")
+}],
+"loop": true,
+"name": &"RUN",
+"speed": 12.0
+}]
+
 [node name="BigRat" type="CharacterBody2D"]
+scale = Vector2(2.6812792, 3.906703)
 collision_layer = 2
 collision_mask = 15
 script = ExtResource("BigRatScript")
 
 [node name="ColorRect" type="ColorRect" parent="."]
+visible = false
 custom_minimum_size = Vector2(55, 35)
 offset_left = -30.0
 offset_top = -30.0
 offset_right = 25.0
 offset_bottom = 5.0
 color = Color(0.5, 0, 0, 1)
+metadata/_edit_use_anchors_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(-1, -13.000001)
@@ -46,3 +86,12 @@ collision_mask = 8
 position = Vector2(-1.6142746, -13.186823)
 scale = Vector2(0.77598417, 0.8208785)
 shape = SubResource("RectangleShape2D_1")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(-0.3729563, -12.286575)
+scale = Vector2(2.9627857, 2.0926976)
+sprite_frames = SubResource("SpriteFrames_mf6sw")
+animation = &"RUN"
+autoplay = "RUN"
+frame = 1
+frame_progress = 0.91493815

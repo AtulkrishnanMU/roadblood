@@ -83,6 +83,10 @@ func set_health(new_health: int):
 	if health <= 0:
 		health_depleted.emit()
 
+# Get current health value
+func get_current_health() -> int:
+	return health
+
 # Get current health percentage (0.0 to 1.0)
 func get_health_percentage() -> float:
 	return float(health) / float(max_health)

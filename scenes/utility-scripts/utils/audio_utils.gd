@@ -10,7 +10,7 @@ class_name AudioUtils
 # Simple fixed-size object pool for audio players
 static var _audio_pool: Array[AudioStreamPlayer2D] = []
 static var _pool_initialized: bool = false
-static var _FIXED_POOL_SIZE: int = 12  # Fixed pool size for optimal performance
+static var _FIXED_POOL_SIZE: int = 50  # Increased from 12 to 50 for mass enemy sounds
 
 static func play_random_pitch(audio, min_pitch: float = 0.9, max_pitch: float = 1.1) -> void:
 	if audio == null:

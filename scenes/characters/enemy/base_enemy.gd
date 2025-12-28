@@ -48,6 +48,7 @@ const BloodEffectsManager = preload("res://scenes/utility-scripts/utils/blood_ef
 const HealthComponent = preload("res://scenes/utility-scripts/utils/health_component.gd")
 const CacheManager = preload("res://scenes/utility-scripts/utils/cache_manager.gd")
 const UIEventManager = preload("res://scenes/utility-scripts/utils/ui_event_manager.gd")
+const SpatialGrid = preload("res://scenes/utility-scripts/utils/spatial_grid.gd")
 
 var player: CharacterBody2D
 var current_target: Node
@@ -109,6 +110,9 @@ func _ready():
 	if food_detector:
 		food_detector.area_entered.connect(_on_food_collision)
 		food_detector.area_exited.connect(_on_food_exit)
+	
+	# Register in spatial grid for efficient collision detection
+	SpatialGrid.register_enemy(self)
 
 func _initialize_cached_references():
 	# Cache frequently accessed nodes
@@ -266,6 +270,9 @@ func _physics_process(delta):
 	if is_dying:
 		return
 	
+	# Update position in spatial grid
+	SpatialGrid.update_enemy_position(self)
+	
 	# Update target cache periodically
 	_target_update_timer += delta
 	if _target_update_timer >= TARGET_UPDATE_INTERVAL:
@@ -298,8 +305,8 @@ func _physics_process(delta):
 	if current_target and is_instance_valid(current_target):
 		var direction = (current_target.global_position - global_position).normalized()
 		
-		# Add collision avoidance for other enemies
-		var avoidance_vector = _calculate_enemy_avoidance()
+		# Add collision avoidance for other enemies using spatial grid (O(1) instead of O(n))
+		var avoidance_vector = _calculate_enemy_avoidance_optimized()
 		direction = (direction + avoidance_vector).normalized()
 		
 		# Move towards target with avoidance
@@ -314,11 +321,11 @@ func _physics_process(delta):
 				# Stop moving when attacking
 				velocity = Vector2.ZERO
 
-func _calculate_enemy_avoidance() -> Vector2:
+func _calculate_enemy_avoidance_optimized() -> Vector2:
 	var avoidance = Vector2.ZERO
-	var enemies = get_tree().get_nodes_in_group("enemies")
+	var nearby_enemies = SpatialGrid.get_nearby_enemies(global_position, 50.0)
 	
-	for enemy in enemies:
+	for enemy in nearby_enemies:
 		if enemy == self or not is_instance_valid(enemy):
 			continue
 		
@@ -329,6 +336,10 @@ func _calculate_enemy_avoidance() -> Vector2:
 			avoidance += away_direction * strength
 	
 	return avoidance
+
+func _calculate_enemy_avoidance() -> Vector2:
+	# Legacy method - use _calculate_enemy_avoidance_optimized() instead
+	return _calculate_enemy_avoidance_optimized()
 
 func _attack_food(food_object):
 	# Only attack if cooldown is ready
@@ -364,10 +375,27 @@ func take_damage(damage: int, knockback_direction: Vector2):
 	# Use health component to handle damage (signals handle combo, sounds, and effects)
 	var was_killed = health_component.take_damage(damage, knockback_direction, true)
 	
+	# Trigger camera shake for enemy damage
+	_trigger_camera_shake()
+	
 	return was_killed  # Enemy was killed if health depleted
+
+func _trigger_camera_shake():
+	# Find the player and trigger camera shake
+	var player = get_tree().get_first_node_in_group("player")
+	print("Enemy _trigger_camera_shake: Player found: ", player != null)
+	if player:
+		player.screen_shake_time = 0.08  # Shorter duration for sharp impact
+		player.current_shake_intensity = 3.0  # Much more intense shake for enemy hits
+		print("Enemy _trigger_camera_shake: Shake set - time: ", player.screen_shake_time, " intensity: ", player.current_shake_intensity)
+	else:
+		print("Enemy _trigger_camera_shake: No player found")
 
 func _start_death_animation():
 	is_dying = true
+	
+	# Unregister from spatial grid
+	SpatialGrid.unregister_enemy(self)
 	
 	# Add score using cached UI event manager (consolidated cache)
 	_ui_event_manager_cache = _ensure_valid_cache(_ui_event_manager_cache, "ui_event_manager")

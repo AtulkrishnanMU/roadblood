@@ -1,9 +1,60 @@
-[gd_scene load_steps=3 format=3 uid="uid://bvxw8y7q2food"]
+[gd_scene load_steps=11 format=3 uid="uid://bvxw8y7q2food"]
 
 [ext_resource type="Script" uid="uid://0c4yxf0sn3fa" path="res://scenes/objects/food/food_object.gd" id="1_food_script"]
+[ext_resource type="Texture2D" uid="uid://bxeh2ff75req1" path="res://sprites/characters/child/SPRITE_SHEET2.png" id="2_eaxdf"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_1"]
 radius = 16.0
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_31bax"]
+atlas = ExtResource("2_eaxdf")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qwm8u"]
+atlas = ExtResource("2_eaxdf")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_75too"]
+atlas = ExtResource("2_eaxdf")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_08ms1"]
+atlas = ExtResource("2_eaxdf")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qjixc"]
+atlas = ExtResource("2_eaxdf")
+region = Rect2(128, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vilm6"]
+atlas = ExtResource("2_eaxdf")
+region = Rect2(160, 0, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_aq0fg"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_31bax")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qwm8u")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_75too")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_08ms1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qjixc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vilm6")
+}],
+"loop": true,
+"name": &"default",
+"speed": 24.0
+}]
 
 [node name="Food" type="Area2D"]
 scale = Vector2(2.2393918, 2.2393918)
@@ -12,6 +63,7 @@ collision_mask = 0
 script = ExtResource("1_food_script")
 
 [node name="ColorRect" type="ColorRect" parent="."]
+visible = false
 custom_minimum_size = Vector2(24, 24)
 offset_left = -12.0
 offset_top = -12.0
@@ -32,3 +84,11 @@ offset_bottom = -18.774042
 max_value = 200.0
 value = 200.0
 show_percentage = false
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(-2.6792989, -5.8051486)
+scale = Vector2(2.0152671, 2.0152671)
+sprite_frames = SubResource("SpriteFrames_aq0fg")
+autoplay = "default"
+frame = 1
+frame_progress = 0.31068113

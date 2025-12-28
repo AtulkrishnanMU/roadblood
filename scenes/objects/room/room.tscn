@@ -1,4 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://bvxw8y7q2room"]
+[gd_scene load_steps=10 format=3 uid="uid://bvxw8y7q2room"]
+
+[ext_resource type="Texture2D" uid="uid://bf7r326o0vamd" path="res://sprites/bg/room1.png" id="1_48iok"]
+[ext_resource type="Script" uid="uid://b3p3glgrbk3gk" path="res://scenes/objects/room/room.gd" id="RoomScript"]
+[ext_resource type="Shader" uid="uid://c1vc700fdqrlf" path="res://scenes/objects/room/vignette.gdshader" id="VignetteShader"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
 size = Vector2(1200, 20)
@@ -12,8 +16,25 @@ size = Vector2(20, 800)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4"]
 size = Vector2(20, 800)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_PlayableArea"]
+size = Vector2(929.1426, 636.22253)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1"]
+shader = ExtResource("VignetteShader")
+shader_parameter/inner_radius = 0.1
+shader_parameter/outer_radius = 1.0
+shader_parameter/vignette_strength = 1.0
+shader_parameter/dither_strength = 0.03
+shader_parameter/vignette_color = Color(0, 0, 0, 1)
+
 [node name="Room" type="Node2D"]
 z_index = -3
+script = ExtResource("RoomScript")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0.5000076, 4.499983)
+scale = Vector2(0.8144531, 0.8310546)
+texture = ExtResource("1_48iok")
 
 [node name="TopWall" type="StaticBody2D" parent="."]
 position = Vector2(0, -400)
@@ -43,9 +64,24 @@ collision_mask = 0
 [node name="CollisionShape2D" type="CollisionShape2D" parent="RightWall"]
 shape = SubResource("RectangleShape2D_4")
 
-[node name="ColorRect" type="ColorRect" parent="."]
-offset_left = -604.0
-offset_top = -403.0
-offset_right = 597.0
-offset_bottom = 404.0
-color = Color(0.3, 0.3, 0.3, 1)
+[node name="PlayableArea" type="Area2D" parent="."]
+position = Vector2(0.5000076, 4.499983)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PlayableArea"]
+position = Vector2(-4, -3.9999886)
+scale = Vector2(0.853475, 0.853475)
+shape = SubResource("RectangleShape2D_PlayableArea")
+
+[node name="Vignette" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_1")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -586.0
+offset_top = -388.0
+offset_right = 653.81494
+offset_bottom = 445.83118
+grow_horizontal = 2
+grow_vertical = 2
+scale = Vector2(0.95014185, 0.9270462)
+color = Color(0, 0, 0, 1)

@@ -1,5 +1,6 @@
-[gd_scene load_steps=4 format=3 uid="uid://dq3n8y7q2n4sl"]
+[gd_scene load_steps=10 format=3 uid="uid://dq3n8y7q2n4sl"]
 
+[ext_resource type="Texture2D" uid="uid://btvfr1t6sdofk" path="res://sprites/characters/basic enemy/sprite sheet 9x12 (free).png" id="2_wys5r"]
 [ext_resource type="Script" uid="uid://cxuekudb4somf" path="res://scenes/characters/enemy/basic_rat.gd" id="EnemyScript"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
@@ -8,12 +9,50 @@ size = Vector2(177.69983, 135.43115)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2"]
 size = Vector2(44, 46)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_cbhqv"]
+atlas = ExtResource("2_wys5r")
+region = Rect2(0, 128, 192, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bj1p1"]
+atlas = ExtResource("2_wys5r")
+region = Rect2(192, 128, 192, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4xdst"]
+atlas = ExtResource("2_wys5r")
+region = Rect2(384, 128, 192, 128)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_e6xvf"]
+atlas = ExtResource("2_wys5r")
+region = Rect2(576, 128, 192, 128)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_awedd"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cbhqv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bj1p1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4xdst")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_e6xvf")
+}],
+"loop": true,
+"name": &"RUN",
+"speed": 24.0
+}]
+
 [node name="Enemy" type="CharacterBody2D"]
+scale = Vector2(3.403974, 3.403974)
 collision_layer = 2
 collision_mask = 15
 script = ExtResource("EnemyScript")
 
 [node name="ColorRect" type="ColorRect" parent="."]
+visible = false
 custom_minimum_size = Vector2(40, 25)
 offset_left = -22.0
 offset_top = -23.0
@@ -46,3 +85,11 @@ collision_mask = 8
 position = Vector2(3.8146973e-06, 7.6293945e-06)
 scale = Vector2(0.25261584, 0.32076356)
 shape = SubResource("RectangleShape2D_1")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(70.7454, -8.90868)
+scale = Vector2(1.8404123, 1.8404123)
+sprite_frames = SubResource("SpriteFrames_awedd")
+animation = &"RUN"
+autoplay = "RUN"
+frame_progress = 0.8109121

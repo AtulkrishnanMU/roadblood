@@ -16,8 +16,9 @@ static var _UIEventManager: Resource = preload("res://scenes/utility-scripts/uti
 const ROTATION_SPEED = 4.0  # radians per second
 const BULLET_SCENE = preload("res://scenes/objects/bullet/bullet.tscn")
 const KNOCKBACK_FORCE = 50.0  # knockback force when shooting (made very subtle)
-const BARREL_LENGTH = 50  # length of the barrel rectangle
-const BARREL_WIDTH = 20
+const BARREL_LENGTH = 50  # length from player center to gun tip
+const BARREL_WIDTH = 20  # Width of the gun for collision/effects
+const GUN_TIP_OFFSET = Vector2(80, 0)  # Offset from gun sprite position to gun tip (increased for better positioning)
 const HIT_SOUND = preload("res://sounds/hit.mp3")  # hit sound effect
 const HEALTH_GAIN_SOUND = preload("res://sounds/health-gain.mp3")  # health gain sound effect
 const GUNSHOT_SOUND = preload("res://sounds/gunshot.mp3")  # gunshot sound effect
@@ -36,12 +37,18 @@ func get_popup_manager():
 						return null
 	return _popup_manager_cache
 
+# Gun reference (removed - bullets spawn from player)
+# @onready var gun_sprite = $Gun if has_node("Gun") else null
+
+# Animation reference
+@onready var animated_sprite = $AnimatedSprite2D
+
 # Multi-bullet system
 var multi_bullet_enabled = false
-var current_gun_width = BARREL_WIDTH
+var current_gun_width = BARREL_WIDTH  # For any remaining width-based calculations
 
 # Player stats
-var MAX_HEALTH = 100
+var MAX_HEALTH = 200
 var SPEED = 300.0
 
 # Player signals
@@ -65,14 +72,15 @@ var time = 0.0
 var shoot_angle = 0.0
 var knockback_velocity = Vector2.ZERO
 var screen_shake_time = 0.0
+var current_shake_intensity = SCREEN_SHAKE_INTENSITY  # Dynamic intensity that can be modified
 var camera: Camera2D
 var ui: CanvasLayer
 var ui_script: Node
 var slow_mo_shoot_counter = 0  # Counter for slow-time shooting limitation
 var was_mouse_pressed = false  # Track previous mouse state
 var shoot_timer = 0.0  # Timer for fire rate control
-const FIRE_RATE = 0.2  # Seconds between shots (5 shots per second)
-const TRIPLE_BULLET_FIRE_RATE = 0.4  # Seconds between triple bullet shots (2.5 shots per second)
+const FIRE_RATE = 0.1  # Seconds between shots (10 shots per second)
+const TRIPLE_BULLET_FIRE_RATE = 0.2  # Seconds between triple bullet shots (5 shots per second)
 
 # Cached references for performance
 var _nearest_enemy_cache: Node = null
@@ -82,41 +90,6 @@ const ENEMY_CACHE_UPDATE_INTERVAL = 0.1  # Update nearest enemy every 100ms (red
 var _ui_event_manager_cache: Node = null
 var _time_utils_cache: Node = null
 
-# Single optimized muzzle flash texture for performance
-static var muzzle_flash_texture: ImageTexture = null
-
-static func _initialize_muzzle_flash_texture():
-	if muzzle_flash_texture != null:
-		return
-	
-	# Create single optimized texture
-	muzzle_flash_texture = _create_optimized_muzzle_flash()
-
-static func _create_optimized_muzzle_flash() -> ImageTexture:
-	var image := Image.create(32, 32, false, Image.FORMAT_RGBA8)
-	image.fill(Color.TRANSPARENT)
-	
-	# Create a simple, efficient circular gradient pattern
-	var center = Vector2(16, 16)
-	var max_radius = 12.0
-	
-	for x in range(32):
-		for y in range(32):
-			var pos = Vector2(x, y)
-			var distance = pos.distance_to(center)
-			
-			if distance <= max_radius:
-				# Create smooth gradient from center to edge
-				var alpha = 1.0 - (distance / max_radius)
-				alpha = alpha * alpha  # Quadratic falloff for smoother look
-				
-				if alpha > 0.1:  # Optimization: skip very transparent pixels
-					var brightness = 0.9 + alpha * 0.1
-					image.set_pixel(x, y, Color(brightness, brightness * 0.7, 0.0, alpha))
-	
-	var texture := ImageTexture.new()
-	texture.set_image(image)
-	return texture
 
 func _ready():
 	# Find the main camera
@@ -133,9 +106,6 @@ func _ready():
 	
 	# Setup combo timer
 	_setup_combo_timer()
-	
-	# Initialize single muzzle flash texture
-	_initialize_muzzle_flash_texture()
 	
 	# Initialize cached references
 	_initialize_cached_references()
@@ -175,6 +145,9 @@ func _setup_health_component():
 	health_component.health_changed.connect(_on_health_changed)
 	health_component.health_depleted.connect(_on_health_depleted)
 	health_component.damage_taken.connect(_on_damage_taken)
+	
+	# Force initial health update to ensure correct color
+	_on_health_changed(MAX_HEALTH, MAX_HEALTH)
 
 func _on_health_changed(current: int, max_hp: int):
 	# Use cached UI event manager for health updates
@@ -252,6 +225,9 @@ func increment_combo_streak():
 func get_best_combo_streak() -> int:
 	return best_combo_streak
 
+func get_health_component():
+	return health_component
+
 func reset_combo_streak():
 	combo_streak = 0
 	combo_active = false
@@ -322,8 +298,21 @@ func _physics_process(delta):
 	if movement_input.length() > 0:
 		movement_input = movement_input.normalized()
 		velocity = movement_input * MOVEMENT_SPEED
+		
+		# Play RUN animation and handle flipping
+		if animated_sprite:
+			animated_sprite.play("RUN")
+			# Flip sprite based on horizontal movement direction
+			if movement_input.x < 0:
+				animated_sprite.flip_h = true  # Facing left
+			elif movement_input.x > 0:
+				animated_sprite.flip_h = false  # Facing right
 	else:
 		velocity = Vector2.ZERO
+		
+		# Play IDLE animation when not moving
+		if animated_sprite:
+			animated_sprite.play("IDLE")
 	
 	# Simple movement
 	move_and_slide()
@@ -338,14 +327,17 @@ func _physics_process(delta):
 	if screen_shake_time > 0:
 		screen_shake_time -= delta
 		var shake_offset = Vector2(
-			randf_range(-1, 1) * SCREEN_SHAKE_INTENSITY,
-			randf_range(-1, 1) * SCREEN_SHAKE_INTENSITY
+			randf_range(-1.5, 1.5) * current_shake_intensity,  # More random X range
+			randf_range(-1.2, 1.2) * current_shake_intensity   # Different Y range for randomness
 		)
 		if camera:
 			camera.offset = shake_offset
+			print("Player camera shake: offset=", shake_offset, " intensity=", current_shake_intensity, " time=", screen_shake_time)
 	else:
 		if camera:
 			camera.offset = Vector2.ZERO
+		# Reset intensity when shake ends
+		current_shake_intensity = SCREEN_SHAKE_INTENSITY
 	
 	# Auto-aim towards nearest enemy - immediate face
 	if camera:
@@ -475,9 +467,8 @@ func _create_bullet_at_angle(angle: float):
 	var bullet = BULLET_SCENE.instantiate()
 	get_parent().add_child(bullet)
 	
-	# Calculate barrel tip position
-	var barrel_tip = Vector2(cos(angle), sin(angle)) * BARREL_LENGTH
-	var spawn_position = global_position + barrel_tip
+	# Calculate bullet spawn position from player center
+	var spawn_position = global_position + Vector2(cos(angle), sin(angle)) * BARREL_LENGTH
 	bullet.global_position = spawn_position
 	
 	# Calculate shooting direction
@@ -488,10 +479,6 @@ func _create_bullet_at_angle(angle: float):
 	if abs(angle - shoot_angle) < 0.1:  # Only apply effects for center bullet
 		screen_shake_time = SCREEN_SHAKE_DURATION
 		
-		# Create muzzle flash effect slightly in front of barrel tip
-		var flash_position = spawn_position + shoot_direction * 35.0  # 20 pixels in front of barrel
-		_create_muzzle_flash(flash_position, shoot_direction)
-		
 		# Play gunshot sound
 		_play_gunshot_sound()
 
@@ -500,7 +487,7 @@ func check_multi_bullet_unlock(total_kills: int):
 	if total_kills >= MULTI_BULLET_KILLS and not multi_bullet_enabled:
 		multi_bullet_enabled = true
 		current_gun_width = BARREL_WIDTH * 2  # Double the gun width
-				# Visual feedback could be added here
+		# Visual feedback could be added here
 
 # Health management functions (using centralized HealthComponent)
 func take_damage(amount: int, knockback_direction: Vector2 = Vector2.ZERO):
@@ -522,81 +509,22 @@ func _play_hit_sound():
 func heal(amount: int):
 	# Use health component to handle healing
 	health_component.heal(amount)
-
-func _create_muzzle_flash(flash_position: Vector2, shoot_direction: Vector2):
-		
-	# Get the main scene to add muzzle flash to world space
-	var scene: Node = Engine.get_main_loop().current_scene
-	if scene == null:
-		return
-	
-	# Create muzzle flash container
-	var flash_root := Node2D.new()
-	flash_root.position = flash_position
-	flash_root.rotation = shoot_direction.angle()
-	scene.add_child(flash_root)
-	
-	# Create multiple flash particles for burst effect
-	var flash_count = 4
-	for i in range(flash_count):
-		var flash := Sprite2D.new()
-		# Use single optimized texture
-		flash.texture = get_muzzle_flash_texture()
-		
-		# Random positioning within small radius
-		var spread_angle = randf_range(-0.3, 0.3)  # Small spread in radians
-		var distance = randf_range(2.0, 8.0)
-		flash.position = Vector2.RIGHT.rotated(spread_angle) * distance
-		
-		# Random size variation (uniform scale for square shape)
-		var scale = randf_range(3.0, 5.0)  # Increased size for better visibility
-		flash.scale = Vector2(scale, scale)  # Keep square aspect ratio
-		
-		# Bright yellow-orange color with maximum opacity
-		flash.modulate = Color(1.0, randf_range(0.6, 0.9), 0.0, 1.0)  # Maximum opacity
-		
-		flash_root.add_child(flash)
-		
-		# Animate flash: quick fade out and scale down
-		var tween := flash_root.create_tween()
-		tween.set_parallel(true)
-		tween.tween_property(flash, "modulate:a", 0.0, 0.1)  # Much shorter duration
-		tween.tween_property(flash, "scale", Vector2.ZERO, 0.1)  # Much shorter duration
-		tween.finished.connect(flash.queue_free)
-	
-	# Remove the container after all flashes are done
-	var cleanup_tween := flash_root.create_tween()
-	cleanup_tween.tween_callback(flash_root.queue_free).set_delay(0.15)  # Shorter cleanup delay
-
-
-static func get_muzzle_flash_texture() -> ImageTexture:
-	if muzzle_flash_texture == null:
-		_initialize_muzzle_flash_texture()
-	return muzzle_flash_texture
+	# Add a sound effect when healing
+	_AudioUtilsScript.play_positioned_sound(HEALTH_GAIN_SOUND, global_position, 0.8, 1.2)
 
 func _play_gunshot_sound():
 	# Use AudioUtils pool for gunshot sound with lower volume and random pitch
 	_AudioUtilsScript.play_positioned_sound(GUNSHOT_SOUND, global_position, 0.8, 1.2)
 
 func _die():
-	# Player death logic - for now just respawn
-	health_component.reset_health()
-	position = Vector2.ZERO  # Reset position
+	# Play DEAD animation when player dies
+	if animated_sprite:
+		animated_sprite.play("DEAD")
+	
+	# Player death logic - game over will be handled by BaseLevel
+	# Don't respawn automatically - let the game over screen handle it
+	pass
 
-func _draw():
-	# Draw barrel as rectangle
-	var barrel_start = Vector2.ZERO
-	var barrel_end = Vector2(cos(shoot_angle), sin(shoot_angle)) * BARREL_LENGTH
-	
-	# Calculate perpendicular direction for rectangle width
-	var perp_dir = Vector2(-sin(shoot_angle), cos(shoot_angle)) * (BARREL_WIDTH * 0.5)
-	
-	# Define rectangle corners
-	var corner1 = barrel_start + perp_dir
-	var corner2 = barrel_start - perp_dir
-	var corner3 = barrel_end - perp_dir
-	var corner4 = barrel_end + perp_dir
-	
-	# Draw the barrel rectangle
-	var points = PackedVector2Array([corner1, corner2, corner3, corner4])
-	draw_colored_polygon(points, Color.GRAY)
+func _process(delta):
+	# Gun sprite removed - no rotation needed
+	pass
